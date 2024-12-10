@@ -57,7 +57,9 @@ class HelpFragmentTest : BaseActivityTest() {
         handleLocaleChange(
           it,
           "en",
-          SharedPreferenceUtil(context)
+          SharedPreferenceUtil(context).apply {
+            lastDonationPopupShownInMilliSeconds = System.currentTimeMillis()
+          }
         )
       }
     }
@@ -73,7 +75,7 @@ class HelpFragmentTest : BaseActivityTest() {
 
   @Test
   fun verifyHelpActivity() {
-    setShowPlayStoreRestriction(false)
+    setShowCopyMoveToPublicDirectory(false)
     activityScenario.onActivity {
       it.navigate(R.id.helpFragment)
     }
@@ -87,8 +89,7 @@ class HelpFragmentTest : BaseActivityTest() {
       clickOnHowToUpdateContent()
       assertHowToUpdateContentIsExpanded()
       clickOnHowToUpdateContent()
-      assertZimFileNotShowingIsNotVisible()
-      clickOnSendFeedback()
+      assertWhyCopyMoveFilesToAppPublicDirectoryIsNotVisible()
     }
     LeakAssertions.assertNoLeaks()
   }
@@ -96,7 +97,7 @@ class HelpFragmentTest : BaseActivityTest() {
   @Test
   fun verifyHelpActivityWithPlayStoreRestriction() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      setShowPlayStoreRestriction(true)
+      setShowCopyMoveToPublicDirectory(true)
       activityScenario.onActivity {
         it.navigate(R.id.helpFragment)
       }
@@ -110,16 +111,15 @@ class HelpFragmentTest : BaseActivityTest() {
         clickOnHowToUpdateContent()
         assertHowToUpdateContentIsExpanded()
         clickOnHowToUpdateContent()
-        clickOnZimFileNotShowing()
-        assertZimFileNotShowingIsExpanded()
-        clickOnZimFileNotShowing()
-        clickOnSendFeedback()
+        clickWhyCopyMoveFilesToAppPublicDirectory()
+        assertWhyCopyMoveFilesToAppPublicDirectoryIsExpanded()
+        clickWhyCopyMoveFilesToAppPublicDirectory()
       }
       LeakAssertions.assertNoLeaks()
     }
   }
 
-  private fun setShowPlayStoreRestriction(showRestriction: Boolean) {
+  private fun setShowCopyMoveToPublicDirectory(showRestriction: Boolean) {
     context.let {
       sharedPreferenceUtil = SharedPreferenceUtil(it).apply {
         setIntroShown()

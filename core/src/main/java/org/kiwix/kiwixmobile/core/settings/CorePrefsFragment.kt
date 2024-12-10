@@ -34,12 +34,16 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.snackbar.Snackbar
 import eu.mhutti1.utils.storage.StorageDevice
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.kiwix.kiwixmobile.core.CoreApp.Companion.coreComponent
 import org.kiwix.kiwixmobile.core.CoreApp.Companion.instance
 import org.kiwix.kiwixmobile.core.DarkModeConfig
@@ -94,20 +98,22 @@ abstract class CorePrefsFragment :
   @Inject
   internal var libkiwixBookmarks: LibkiwixBookmarks? = null
   override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-    coreComponent
-      .activityComponentBuilder()
-      .activity(requireActivity())
-      .build()
-      .inject(this)
-    addPreferencesFromResource(R.xml.preferences)
-    setStorage()
-    setUpSettings()
-    setupZoom()
-    sharedPreferenceUtil?.let {
-      LanguageUtils(requireActivity()).changeFont(
-        requireActivity(),
-        it
-      )
+    lifecycleScope.launch {
+      coreComponent
+        .activityComponentBuilder()
+        .activity(requireActivity())
+        .build()
+        .inject(this@CorePrefsFragment)
+      addPreferencesFromResource(R.xml.preferences)
+      setStorage()
+      setUpSettings()
+      setupZoom()
+      sharedPreferenceUtil?.let {
+        LanguageUtils(requireActivity()).changeFont(
+          requireActivity(),
+          it
+        )
+      }
     }
   }
 
@@ -126,7 +132,7 @@ abstract class CorePrefsFragment :
     textZoom?.summary = getString(R.string.percentage, sharedPreferenceUtil?.textZoom)
   }
 
-  protected abstract fun setStorage()
+  protected abstract suspend fun setStorage()
   override fun onResume() {
     super.onResume()
     preferenceScreen.sharedPreferences
@@ -403,7 +409,9 @@ abstract class CorePrefsFragment :
 
           createTempFile(contentResolver.openInputStream(uri)).apply {
             if (isValidXmlFile(this)) {
-              libkiwixBookmarks?.importBookmarks(this)
+              CoroutineScope(Dispatchers.IO).launch {
+                libkiwixBookmarks?.importBookmarks(this@apply)
+              }
             } else {
               activity.toast(
                 resources.getString(R.string.error_invalid_bookmark_file),
@@ -443,18 +451,19 @@ abstract class CorePrefsFragment :
 
   @Suppress("NestedBlockDepth")
   fun onStorageDeviceSelected(storageDevice: StorageDevice) {
-    sharedPreferenceUtil?.let { sharedPreferenceUtil ->
-      sharedPreferenceUtil.putPrefStorage(
-        sharedPreferenceUtil.getPublicDirectoryPath(storageDevice.name)
-      )
-      sharedPreferenceUtil.putStoragePosition(
-        if (storageDevice.isInternal) INTERNAL_SELECT_POSITION
-        else EXTERNAL_SELECT_POSITION
-      )
-      setShowStorageOption()
-      setStorage()
+    lifecycleScope.launch {
+      sharedPreferenceUtil?.let { sharedPreferenceUtil ->
+        sharedPreferenceUtil.putPrefStorage(
+          sharedPreferenceUtil.getPublicDirectoryPath(storageDevice.name)
+        )
+        sharedPreferenceUtil.putStoragePosition(
+          if (storageDevice.isInternal) INTERNAL_SELECT_POSITION
+          else EXTERNAL_SELECT_POSITION
+        )
+        setShowStorageOption()
+        setStorage()
+      }
     }
-    return
   }
 
   private fun setShowStorageOption() {

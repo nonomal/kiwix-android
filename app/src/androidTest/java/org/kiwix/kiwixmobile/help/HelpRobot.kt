@@ -27,7 +27,6 @@ import org.kiwix.kiwixmobile.Findable.Text
 import org.kiwix.kiwixmobile.Findable.ViewId
 import org.kiwix.kiwixmobile.core.R.id
 import org.kiwix.kiwixmobile.core.R.string
-import org.kiwix.kiwixmobile.core.main.KIWIX_APK_WEBSITE_URL
 import org.kiwix.kiwixmobile.testutils.TestUtils.testFlakyView
 
 fun help(func: HelpRobot.() -> Unit) = HelpRobot().apply(func)
@@ -80,27 +79,16 @@ class HelpRobot : BaseRobot() {
     isVisible(TextId(string.update_content_description))
   }
 
-  fun clickOnSendFeedback() {
-    clickOn(ViewId(id.activity_help_feedback_text_view))
+  fun clickWhyCopyMoveFilesToAppPublicDirectory() {
+    clickOn(TextId(string.why_copy_move_files_to_app_directory))
   }
 
-  fun clickOnZimFileNotShowing() {
-    clickOn(TextId(string.zim_files_not_showing))
+  fun assertWhyCopyMoveFilesToAppPublicDirectoryIsExpanded() {
+    isVisible(Text(context.getString(string.copy_move_files_to_app_directory_description)))
   }
 
-  fun assertZimFileNotShowingIsExpanded() {
-    isVisible(
-      Text(
-        context.getString(
-          string.zim_files_not_showing_description,
-          KIWIX_APK_WEBSITE_URL
-        )
-      )
-    )
-  }
-
-  fun assertZimFileNotShowingIsNotVisible() {
-    onView(withText("Zim files not showing?"))
+  fun assertWhyCopyMoveFilesToAppPublicDirectoryIsNotVisible() {
+    onView(withText(string.why_copy_move_files_to_app_directory))
       .check(doesNotExist())
   }
 

@@ -19,6 +19,7 @@ package org.kiwix.kiwixmobile.testutils
 
 import android.Manifest
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -36,8 +37,14 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject
 import androidx.test.uiautomator.UiObjectNotFoundException
 import androidx.test.uiautomator.UiSelector
+import okhttp3.OkHttpClient
 import org.hamcrest.Description
 import org.hamcrest.Matcher
+import org.kiwix.kiwixmobile.core.data.remote.UserAgentInterceptor
+import org.kiwix.kiwixmobile.core.di.modules.CALL_TIMEOUT
+import org.kiwix.kiwixmobile.core.di.modules.CONNECTION_TIMEOUT
+import org.kiwix.kiwixmobile.core.di.modules.READ_TIMEOUT
+import org.kiwix.kiwixmobile.core.di.modules.USER_AGENT
 import org.kiwix.kiwixmobile.core.entity.LibraryNetworkEntity
 import org.kiwix.kiwixmobile.core.utils.files.Log
 import java.io.File
@@ -46,6 +53,8 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
 
 /**
  * Created by mhutti1 on 07/04/17.
@@ -213,4 +222,36 @@ object TestUtils {
       }
     }
   }
+
+  @JvmStatic
+  fun deleteTemporaryFilesOfTestCases(context: Context) {
+    ContextCompat.getExternalFilesDirs(context, null).filterNotNull()
+      .map(::deleteAllFilesInDirectory)
+    ContextWrapper(context).externalMediaDirs.filterNotNull()
+      .map(::deleteAllFilesInDirectory)
+  }
+
+  private fun deleteAllFilesInDirectory(directory: File) {
+    if (directory.isDirectory) {
+      directory.listFiles()?.forEach { file ->
+        if (file.isDirectory) {
+          // Recursively delete files in subdirectories
+          deleteAllFilesInDirectory(file)
+        }
+        file.delete()
+      }
+    }
+  }
+
+  @JvmStatic
+  @Singleton
+  fun getOkkHttpClientForTesting(): OkHttpClient =
+    OkHttpClient().newBuilder()
+      .followRedirects(true)
+      .followSslRedirects(true)
+      .connectTimeout(CONNECTION_TIMEOUT, TimeUnit.SECONDS)
+      .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
+      .callTimeout(CALL_TIMEOUT, TimeUnit.SECONDS)
+      .addNetworkInterceptor(UserAgentInterceptor(USER_AGENT))
+      .build()
 }

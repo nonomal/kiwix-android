@@ -35,20 +35,8 @@ fun File.freeSpace(): Long = runBlocking {
   }
 }
 
-fun File.totalSpace(): Long = runBlocking {
-  withContext(Dispatchers.IO) {
-    totalSpace
-  }
-}
+suspend fun File.totalSpace(): Long = withContext(Dispatchers.IO) { totalSpace }
 
-fun File.canReadFile(): Boolean = runBlocking {
-  withContext(Dispatchers.IO) {
-    canRead()
-  }
-}
+suspend fun File.canReadFile(): Boolean = withContext(Dispatchers.IO) { canRead() }
 
-fun File.deleteFile(): Boolean = runBlocking {
-  withContext(Dispatchers.IO) {
-    delete()
-  }
-}
+suspend fun File.deleteFile(): Boolean = withContext(Dispatchers.IO) { delete() }

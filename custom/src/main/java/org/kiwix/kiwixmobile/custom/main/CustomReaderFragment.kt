@@ -28,14 +28,18 @@ import android.view.View.VISIBLE
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.net.toUri
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.fragment.findNavController
+import kotlinx.coroutines.launch
 import org.kiwix.kiwixmobile.core.R.dimen
 import org.kiwix.kiwixmobile.core.base.BaseActivity
+import org.kiwix.kiwixmobile.core.extensions.browserIntent
 import org.kiwix.kiwixmobile.core.extensions.getResizedDrawable
 import org.kiwix.kiwixmobile.core.extensions.isFileExist
 import org.kiwix.kiwixmobile.core.main.CoreReaderFragment
 import org.kiwix.kiwixmobile.core.main.MainMenu
+import org.kiwix.kiwixmobile.core.main.RestoreOrigin
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils
 import org.kiwix.kiwixmobile.core.utils.dialog.DialogShower
@@ -161,7 +165,9 @@ class CustomReaderFragment : CoreReaderFragment() {
   override fun restoreViewStateOnValidJSON(
     zimArticles: String?,
     zimPositions: String?,
-    currentTab: Int
+    currentTab: Int,
+    // Unused in custom apps as there is only one ZIM file that is already set.
+    restoreOrigin: RestoreOrigin
   ) {
     restoreTabs(zimArticles, zimPositions, currentTab)
   }
@@ -181,33 +187,35 @@ class CustomReaderFragment : CoreReaderFragment() {
   private fun openObbOrZim() {
     customFileValidator.validate(
       onFilesFound = {
-        when (it) {
-          is ValidationState.HasFile -> {
-            openZimFile(
-              ZimReaderSource(
-                file = it.file,
-                null,
-                it.assetFileDescriptorList
-              ),
-              true
-            )
-            // Save book in the database to display it in `ZimHostFragment`.
-            zimReaderContainer?.zimFileReader?.let { zimFileReader ->
-              // Check if the file is not null. If the file is null,
-              // it means we have created zimFileReader with a fileDescriptor,
-              // so we create a demo file to save it in the database for display on the `ZimHostFragment`.
-              val file = it.file ?: createDemoFile()
-              val bookOnDisk = BookOnDisk(zimFileReader)
-              repositoryActions?.saveBook(bookOnDisk)
+        coreReaderLifeCycleScope?.launch {
+          when (it) {
+            is ValidationState.HasFile -> {
+              openZimFile(
+                ZimReaderSource(
+                  file = it.file,
+                  null,
+                  it.assetFileDescriptorList
+                ),
+                true
+              )
+              // Save book in the database to display it in `ZimHostFragment`.
+              zimReaderContainer?.zimFileReader?.let { zimFileReader ->
+                // Check if the file is not null. If the file is null,
+                // it means we have created zimFileReader with a fileDescriptor,
+                // so we create a demo file to save it in the database for display on the `ZimHostFragment`.
+                val file = it.file ?: createDemoFile()
+                val bookOnDisk = BookOnDisk(zimFileReader)
+                repositoryActions?.saveBook(bookOnDisk)
+              }
             }
-          }
 
-          is ValidationState.HasBothFiles -> {
-            it.zimFile.delete()
-            openZimFile(ZimReaderSource(it.obbFile), true)
-          }
+            is ValidationState.HasBothFiles -> {
+              it.zimFile.delete()
+              openZimFile(ZimReaderSource(it.obbFile), true)
+            }
 
-          else -> {}
+            else -> {}
+          }
         }
       },
       onNoFilesFound = {
@@ -326,6 +334,22 @@ class CustomReaderFragment : CoreReaderFragment() {
 
   override fun createNewTab() {
     newMainPageTab()
+  }
+
+  /**
+   * Overrides the method to show the donation popup. When the "Support url" is disabled
+   * in a custom app, this function stop to show the donationPopup.
+   */
+  override fun showDonationLayout() {
+    if (BuildConfig.SUPPORT_URL.isNotEmpty()) {
+      super.showDonationLayout()
+    }
+  }
+
+  override fun openKiwixSupportUrl() {
+    if (BuildConfig.SUPPORT_URL.isNotEmpty()) {
+      openExternalUrl(BuildConfig.SUPPORT_URL.toUri().browserIntent())
+    }
   }
 
   override fun onDestroyView() {

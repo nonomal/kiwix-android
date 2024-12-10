@@ -24,11 +24,13 @@ import android.os.Process
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.net.toUri
 import androidx.core.os.bundleOf
+import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_LOCKED_CLOSED
 import androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_UNLOCKED
@@ -46,11 +48,11 @@ import org.kiwix.kiwixmobile.core.CoreApp
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.base.BaseActivity
 import org.kiwix.kiwixmobile.core.base.FragmentActivityExtensions
+import org.kiwix.kiwixmobile.core.base.FragmentActivityExtensions.Super.ShouldCall
 import org.kiwix.kiwixmobile.core.data.remote.ObjectBoxToLibkiwixMigrator
 import org.kiwix.kiwixmobile.core.data.remote.ObjectBoxToRoomMigrator
 import org.kiwix.kiwixmobile.core.di.components.CoreActivityComponent
 import org.kiwix.kiwixmobile.core.downloader.downloadManager.DownloadManagerBroadcastReceiver
-import org.kiwix.kiwixmobile.core.downloader.downloadManager.DownloadNotificationActionsBroadcastReceiver
 import org.kiwix.kiwixmobile.core.error.ErrorActivity
 import org.kiwix.kiwixmobile.core.extensions.browserIntent
 import org.kiwix.kiwixmobile.core.extensions.getToolbarNavigationIcon
@@ -67,12 +69,12 @@ import javax.inject.Inject
 import kotlin.system.exitProcess
 
 const val KIWIX_SUPPORT_URL = "https://www.kiwix.org/support"
-const val KIWIX_APK_WEBSITE_URL = "https://download.kiwix.org/release/kiwix-android/"
 const val PAGE_URL_KEY = "pageUrl"
 const val SHOULD_OPEN_IN_NEW_TAB = "shouldOpenInNewTab"
 const val FIND_IN_PAGE_SEARCH_STRING = "findInPageSearchString"
 const val ZIM_FILE_URI_KEY = "zimFileUri"
 const val KIWIX_INTERNAL_ERROR = 10
+const val ACTION_NEW_TAB = "NEW_TAB"
 
 abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
 
@@ -90,8 +92,6 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
   abstract val historyFragmentResId: Int
   abstract val notesFragmentResId: Int
   abstract val helpFragmentResId: Int
-  abstract val zimHostFragmentResId: Int
-  abstract val navGraphId: Int
   abstract val cachedComponent: CoreActivityComponent
   abstract val topLevelDestinations: Set<Int>
   abstract val navHostContainer: FragmentContainerView
@@ -102,10 +102,6 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
 
   @Inject
   lateinit var downloadManagerBroadcastReceiver: DownloadManagerBroadcastReceiver
-
-  @Inject
-  lateinit var downloadNotificationActionsReceiver: DownloadNotificationActionsBroadcastReceiver
-
   override fun onCreate(savedInstanceState: Bundle?) {
     setTheme(R.style.KiwixTheme)
     super.onCreate(savedInstanceState)
@@ -137,7 +133,8 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
       objectBoxToRoomMigrator.migrateObjectBoxDataToRoom()
     }
     downloadManagerBroadcastReceiver.let(::registerReceiver)
-    downloadNotificationActionsReceiver.let(::registerReceiver)
+    createApplicationShortcuts()
+    handleBackPressed()
   }
 
   @Suppress("DEPRECATION")
@@ -155,8 +152,8 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
   }
 
   override fun onDestroy() {
+    onBackPressedCallBack.remove()
     downloadManagerBroadcastReceiver.let(::unregisterReceiver)
-    downloadNotificationActionsReceiver.let(::unregisterReceiver)
     super.onDestroy()
   }
 
@@ -223,7 +220,7 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
   override fun onSupportNavigateUp(): Boolean =
     navController.navigateUp() || super.onSupportNavigateUp()
 
-  open fun setupDrawerToggle(toolbar: Toolbar) {
+  open fun setupDrawerToggle(toolbar: Toolbar, shouldEnableRightDrawer: Boolean = false) {
     // Set the initial contentDescription to the hamburger icon.
     // This method is called from various locations after modifying the navigationIcon.
     // For example, we previously changed this icon/contentDescription to the "+" button
@@ -244,11 +241,17 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
       it.syncState()
     }
     drawerContainerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+    if (shouldEnableRightDrawer) {
+      // Enable the right drawer
+      drawerContainerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.END)
+    }
   }
 
   open fun disableDrawer() {
     drawerToggle?.isDrawerIndicatorEnabled = false
     drawerContainerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+    // Disable the right drawer
+    drawerContainerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED, GravityCompat.END)
   }
 
   open fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -259,15 +262,9 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
       R.id.menu_notes -> openNotes()
       R.id.menu_history -> openHistory()
       R.id.menu_bookmarks_list -> openBookmarks()
-      R.id.menu_host_books -> openZimHostFragment()
       else -> return false
     }
     return true
-  }
-
-  private fun openZimHostFragment() {
-    navigate(zimHostFragmentResId)
-    handleDrawerOnNavigation()
   }
 
   private fun openHelpFragment() {
@@ -282,32 +279,44 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
     drawerContainerLayout.closeDrawer(drawerNavView)
   }
 
-  private fun openSupportKiwixExternalLink() {
+  fun openSupportKiwixExternalLink() {
     externalLinkOpener.openExternalUrl(KIWIX_SUPPORT_URL.toUri().browserIntent())
   }
 
-  override fun onBackPressed() {
-    if (navigationDrawerIsOpen()) {
-      closeNavigationDrawer()
-      return
-    }
-    if (activeFragments().filterIsInstance<FragmentActivityExtensions>().isEmpty()) {
-      return super.onBackPressedDispatcher.onBackPressed()
-    }
-    activeFragments().filterIsInstance<FragmentActivityExtensions>().forEach {
-      if (it.onBackPressed(this) == FragmentActivityExtensions.Super.ShouldCall) {
-        if (navController.currentDestination?.id?.equals(readerFragmentResId) == true &&
-          navController.previousBackStackEntry?.destination
-            ?.id?.equals(searchFragmentResId) == false
-        ) {
-          drawerToggle = null
-          finish()
-        } else {
-          super.onBackPressedDispatcher.onBackPressed()
+  private fun handleBackPressed() {
+    onBackPressedDispatcher.addCallback(this, onBackPressedCallBack)
+  }
+
+  private val onBackPressedCallBack =
+    object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() {
+        if (navigationDrawerIsOpen()) {
+          closeNavigationDrawer()
+          return
+        }
+        if (activeFragments().filterIsInstance<FragmentActivityExtensions>().isEmpty()) {
+          isEnabled = false
+          return onBackPressedDispatcher.onBackPressed().also {
+            isEnabled = true
+          }
+        }
+        activeFragments().filterIsInstance<FragmentActivityExtensions>().forEach {
+          if (it.onBackPressed(this@CoreMainActivity) == ShouldCall) {
+            if (navController.currentDestination?.id?.equals(readerFragmentResId) == true &&
+              navController.previousBackStackEntry?.destination
+                ?.id?.equals(searchFragmentResId) == false
+            ) {
+              drawerToggle = null
+              finish()
+            } else {
+              isEnabled = false
+              onBackPressedDispatcher.onBackPressed()
+              isEnabled = true
+            }
+          }
         }
       }
     }
-  }
 
   override fun onCreateOptionsMenu(menu: Menu): Boolean {
 
@@ -416,4 +425,5 @@ abstract class CoreMainActivity : BaseActivity(), WebViewProvider {
 
   protected abstract fun getIconResId(): Int
   abstract val readerFragmentResId: Int
+  abstract fun createApplicationShortcuts()
 }

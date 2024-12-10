@@ -18,17 +18,23 @@
 
 package org.kiwix.kiwixmobile.download
 
+import android.view.View
+import androidx.recyclerview.widget.RecyclerView
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withSubstring
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import applyWithViewHierarchyPrinting
 import com.adevinta.android.barista.interaction.BaristaSleepInteractions
 import com.adevinta.android.barista.interaction.BaristaSwipeRefreshInteractions.refresh
 import junit.framework.AssertionFailedError
+import org.hamcrest.Matcher
 import org.junit.Assert
 import org.kiwix.kiwixmobile.BaseRobot
 import org.kiwix.kiwixmobile.Findable.StringId.TextId
@@ -40,14 +46,12 @@ import org.kiwix.kiwixmobile.download.DownloadTest.Companion.KIWIX_DOWNLOAD_TEST
 import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.testFlakyView
 import org.kiwix.kiwixmobile.utils.RecyclerViewMatcher
+import org.kiwix.kiwixmobile.zimManager.libraryView.adapter.LibraryListItem
 
 fun downloadRobot(func: DownloadRobot.() -> Unit) =
   DownloadRobot().applyWithViewHierarchyPrinting(func)
 
 class DownloadRobot : BaseRobot() {
-
-  private var retryCountForDataToLoad = 10
-  private var retryCountForCheckDownloadStart = 10
 
   fun clickLibraryOnBottomNav() {
     clickOn(ViewId(R.id.libraryFragment))
@@ -57,17 +61,33 @@ class DownloadRobot : BaseRobot() {
     clickOn(ViewId(R.id.downloadsFragment))
   }
 
-  fun waitForDataToLoad() {
+  fun waitForDataToLoad(retryCountForDataToLoad: Int = 10) {
     try {
       isVisible(TextId(string.your_languages))
     } catch (e: RuntimeException) {
       if (retryCountForDataToLoad > 0) {
-        retryCountForDataToLoad--
-        waitForDataToLoad()
+        // refresh the data if there is "Swipe Down for Library" visible on the screen.
+        refreshOnlineListIfSwipeDownForLibraryTextVisible()
+        waitForDataToLoad(retryCountForDataToLoad - 1)
         return
       }
       // throw the exception when there is no more retry left.
       throw RuntimeException("Couldn't load the online library list.\n Original exception = $e")
+    }
+  }
+
+  private fun refreshOnlineListIfSwipeDownForLibraryTextVisible() {
+    try {
+      onView(withText(string.swipe_down_for_library)).check(matches(isDisplayed()))
+      refreshOnlineList()
+    } catch (e: RuntimeException) {
+      try {
+        // do nothing as currently downloading the online library.
+        onView(withId(R.id.onlineLibraryProgressLayout)).check(matches(isDisplayed()))
+      } catch (e: RuntimeException) {
+        // if not visible try to get the online library.
+        refreshOnlineList()
+      }
     }
   }
 
@@ -85,30 +105,23 @@ class DownloadRobot : BaseRobot() {
     }
   }
 
-  fun refreshOnlineList() {
+  private fun refreshOnlineList() {
     refresh(R.id.librarySwipeRefresh)
   }
 
-  fun downloadZimFile() {
+  fun downloadZimFile(position: Int = 1) {
     pauseForBetterTestPerformance()
     testFlakyView({
       onView(
         RecyclerViewMatcher(R.id.libraryList).atPosition(
-          1
+          position
         )
       ).perform(click())
     })
   }
 
   fun assertDownloadStart() {
-    try {
-      isVisible(ViewId(R.id.stop))
-    } catch (e: RuntimeException) {
-      if (retryCountForCheckDownloadStart > 0) {
-        retryCountForCheckDownloadStart--
-        assertDownloadStart()
-      }
-    }
+    testFlakyView({ onView(withId(R.id.stop)).check(matches(isDisplayed())) })
   }
 
   private fun stopDownload() {
@@ -121,12 +134,7 @@ class DownloadRobot : BaseRobot() {
 
   fun assertDownloadPaused() {
     testFlakyView({
-      pauseForBetterTestPerformance()
-      onView(
-        withText(
-          org.kiwix.kiwixmobile.core.R.string.paused_state
-        )
-      ).check(matches(isDisplayed()))
+      onView(withSubstring(context.getString(string.paused_state))).check(matches(isDisplayed()))
     })
   }
 
@@ -139,14 +147,32 @@ class DownloadRobot : BaseRobot() {
     onView(withText(org.kiwix.kiwixmobile.core.R.string.paused_state)).check(doesNotExist())
   }
 
-  fun waitUntilDownloadComplete() {
+  // wait for 5 minutes for downloading the ZIM file
+  fun waitUntilDownloadComplete(retryCountForDownloadingZimFile: Int = 30) {
     try {
       onView(withId(R.id.stop)).check(doesNotExist())
-      Log.i("kiwixDownloadTest", "Download complete")
+      Log.e(KIWIX_DOWNLOAD_TEST, "Download complete")
     } catch (e: AssertionFailedError) {
-      BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
-      Log.i("kiwixDownloadTest", "Downloading in progress")
-      waitUntilDownloadComplete()
+      if (retryCountForDownloadingZimFile > 0) {
+        resumeDownloadIfPaused()
+        BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
+        Log.e(KIWIX_DOWNLOAD_TEST, "Downloading in progress")
+        waitUntilDownloadComplete(retryCountForDownloadingZimFile - 1)
+        return
+      }
+      // throw the exception when there is no more retry left.
+      throw RuntimeException("Couldn't download the ZIM file.\n Original exception = $e")
+    }
+  }
+
+  private fun resumeDownloadIfPaused() {
+    try {
+      onView(withSubstring(context.getString(string.paused_state))).check(matches(isDisplayed()))
+      resumeDownload()
+    } catch (e: AssertionFailedError) {
+      // do nothing since downloading is In Progress.
+    } catch (e: RuntimeException) {
+      // do nothing since downloading is In Progress.
     }
   }
 
@@ -177,19 +203,58 @@ class DownloadRobot : BaseRobot() {
       clickOnYesButton()
       pauseForBetterTestPerformance()
     } catch (e: Exception) {
-      Log.i(
-        "DOWNLOAD_TEST",
+      Log.e(
+        KIWIX_DOWNLOAD_TEST,
         "Failed to stop downloading. Probably because it is not downloading the zim file"
       )
     }
   }
 
-  fun refreshLocalLibraryData() {
-    try {
-      refresh(R.id.zim_swiperefresh)
-      pauseForBetterTestPerformance()
-    } catch (e: RuntimeException) {
-      Log.w(KIWIX_DOWNLOAD_TEST, "Failed to refresh ZIM list: " + e.localizedMessage)
+  fun getSmallestZimFileIndex(it: List<LibraryListItem>?): Int {
+    var zimFileSizeWithIndex: Pair<Int, Long> = 0 to Long.MAX_VALUE
+    it?.forEachIndexed { index, libraryItem ->
+      if (libraryItem is LibraryListItem.BookItem) {
+        val bookSize = libraryItem.book.size.toLong()
+        if (bookSize < 20000L) {
+          return@getSmallestZimFileIndex index
+        } else if (bookSize < zimFileSizeWithIndex.second) {
+          zimFileSizeWithIndex = index to bookSize
+        }
+      }
+    }
+    return zimFileSizeWithIndex.first
+  }
+
+  fun scrollToZimFileIndex(index: Int) {
+    testFlakyView({
+      onView(withId(R.id.libraryList))
+        .perform(scrollToTop(index))
+    })
+  }
+
+  private fun scrollToTop(position: Int): ViewAction {
+    return object : ViewAction {
+      override fun getDescription(): String =
+        "scroll RecyclerView item at position $position to the top"
+
+      override fun getConstraints(): Matcher<View> =
+        androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom(RecyclerView::class.java)
+
+      override fun perform(uiController: UiController, view: View) {
+        val recyclerView = view as RecyclerView
+        val viewHolder = recyclerView.findViewHolderForAdapterPosition(position)
+
+        if (viewHolder?.itemView == null) {
+          recyclerView.scrollToPosition(position)
+          uiController.loopMainThreadUntilIdle()
+        }
+
+        val newViewHolder = recyclerView.findViewHolderForAdapterPosition(position)
+        newViewHolder?.let {
+          val top = newViewHolder.itemView.top
+          recyclerView.scrollBy(0, top)
+        }
+      }
     }
   }
 }

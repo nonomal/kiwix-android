@@ -111,8 +111,11 @@ class ImportBookmarkTest : BaseActivityTest() {
       putBoolean(SharedPreferenceUtil.PREF_SHOW_INTRO, false)
       putBoolean(SharedPreferenceUtil.PREF_WIFI_ONLY, false)
       putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
-      putBoolean(SharedPreferenceUtil.PREF_PLAY_STORE_RESTRICTION, false)
       putString(SharedPreferenceUtil.PREF_LANG, "en")
+      putLong(
+        SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
+        System.currentTimeMillis()
+      )
     }
     activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
@@ -184,8 +187,8 @@ class ImportBookmarkTest : BaseActivityTest() {
 
   private fun getTemporaryBookmarkFile(isWithEmptyData: Boolean = false): File =
     File(context.externalCacheDir, "bookmark.xml").apply {
-      createNewFile()
       if (exists()) delete()
+      createNewFile()
 
       if (!isWithEmptyData) {
         // Write the XML data to the temp file

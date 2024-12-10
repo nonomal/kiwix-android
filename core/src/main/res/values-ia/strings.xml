@@ -54,10 +54,11 @@
   <string name="error_server_already_running">Le servitor es ja in execution. Per favor disactiva lo e re-tenta.</string>
   <string name="error_ip_address_not_found">Non poteva trovar le adresse IP.</string>
   <string name="server_started_message">Entra iste adresse IP in tu navigator pro acceder al servitor %s</string>
+  <string name="qr_code">Codice QR rendite</string>
   <string name="share_host_address">Condivider le URL via altere applicationes</string>
   <string name="error_file_not_found">Error: Le file ZIM seligite non poteva esser trovate.</string>
-  <string name="unable_to_read_zim_file">Impossibile leger iste file zim!</string>
-  <string name="zim_not_opened">Impossibile aperir le file .zim</string>
+  <string name="unable_to_read_zim_file">Impossibile leger iste file ZIM!</string>
+  <string name="zim_not_opened">Impossibile aperir le file ZIM</string>
   <string name="error_file_invalid">Error: Le file seligite non es un file ZIM valide.</string>
   <string name="error_article_url_not_found">Error: Le cargamento del articulo (Url: %1$s) ha fallite.</string>
   <string name="pref_display_title">Visualisation</string>
@@ -73,11 +74,11 @@
   <string name="pref_credits_title">Creditos</string>
   <string name="tts_lang_not_supported">Le lingua de iste pagina non es supportate. Pote esser que le pagina non appare correctemente.</string>
   <string name="no_reader_application_installed">Non poteva trovar un application installate pro iste typo de file</string>
-  <string name="no_email_application_installed">Per favor installa un fornitor de servicio e-mail o invia nos un message a %1s</string>
+  <string name="no_email_application_installed">Per favor, instala un cliente de correo electronic</string>
   <string name="no_app_found_to_select_bookmark_file">Necun app trovate pro seliger un file de marcapaginas</string>
   <string name="no_section_info">Nulle capites de contento trovate</string>
-  <string name="request_storage">Pro acceder a files ZIM, nos require accesso a tu immagazinage.</string>
-  <string name="request_write_storage">Discargar files zim necessita accesso de scriptura a tu immagazinage</string>
+  <string name="request_storage">Pro acceder al contento foras de linea, nos require accesso a tu immagazinage.</string>
+  <string name="request_write_storage">Discargar files ZIM necessita accesso de scriptura a tu immagazinage</string>
   <string name="clear_recent_and_tabs_history_dialog">Es tu secur de voler deler tu historia de recerca e reinitialisar tote le schedas active?</string>
   <string name="delete_recent_search_item">Deler iste elemento?</string>
   <string name="pref_clear_all_history_title">Rader historia</string>
@@ -121,12 +122,14 @@
   <string name="local_zims">Apparato</string>
   <string name="remote_zims">In linea</string>
   <string name="library">Bibliotheca</string>
-  <string name="delete_zim_body">Le sequente file(s) zim essera delite:\n\n%s</string>
+  <string name="delete_zim_body">Le sequente file(s) ZIM essera delite:\n\n%s</string>
   <string name="delete_zims_toast">Le files ha essite delite</string>
   <string name="no_files_here">Necun file hic</string>
   <string name="download_no_space">Spatio insufficiente pro discargar.</string>
   <string name="download">Discargar</string>
+  <string name="download_notification_channel_name">Nomine del canal de notification de discargamentos</string>
   <string name="space_available">Spatio disponibile:</string>
+  <string name="move_no_space">Spatio insufficiente pro displaciar/copiar.</string>
   <string name="zim_simple">Simple</string>
   <string name="zim_no_pic">Necun imagine</string>
   <string name="zim_no_vid">Necun video</string>
@@ -139,26 +142,26 @@
   <string name="help_7">Es disponibile como files ZIM. Existe multes:</string>
   <string name="help_8">• Wikipedia es disponibile separatemente pro cata lingua</string>
   <string name="help_9">• Altere contento como Wikileaks o Wikisource es tamben disponibile</string>
-  <string name="help_10">Tu pote discargar le files ZIM de tu preferentia in le application, o seliger cautemente le file(s) que tu vole e discargar desde un computator de scriptorio ante de transferer le files ZIM a tu carta SD.</string>
+  <string name="help_10" fuzzy="true">Tu pote discargar le files ZIM de tu preferentia in le application, o seliger cautemente le file(s) que tu vole e discargar desde un computator de scriptorio ante de transferer le files ZIM a tu carta SD.</string>
   <string name="help_11">Le files ZIM discargate in le application es situate in le directorio de immagazinage externe in un dossier appellate Kiwix.</string>
   <string name="pref_storage">Immagazinage</string>
   <string name="pref_current_folder">Dossier actual</string>
+  <string name="pref_storage_used">%s usate</string>
+  <string name="pref_free_storage">%s libere</string>
   <string name="delete_zim_failed">Alcun files non ha potite esser delite. Tenta usar un gestor de files pro deler los.</string>
   <string name="tts_pause">pausar</string>
   <string name="tts_resume">reprender</string>
   <string name="stop">stoppar</string>
-  <string name="configure_storage_option">Discargar le libro al immagazinage interne?</string>
   <string name="internal_storage">Interne</string>
   <string name="external_storage">Externe</string>
-  <string name="configure">Configurar</string>
   <string name="yes">Si</string>
   <string name="no">No</string>
   <string name="confirm_stop_download_title">Stoppar le discargamento?</string>
   <string name="confirm_stop_download_msg">Es tu secur de voler interrumper iste discargamento?</string>
   <string name="download_change_storage">Selector de dispositivo de immagazinage</string>
-  <string name="tts_not_enabled">Le lectura a voce alte non es activate pro iste file ZIM</string>
-  <string name="texttospeech_initialization_failed">Le initialisation del motor de synthese vocal ha fallite. Per favor tenta lo de novo</string>
-  <string name="texttospeech_error">Error inexpectate in le motor de synthese vocal. Per favor tenta lo de novo</string>
+  <string name="tts_not_enabled" fuzzy="true">Le lectura a voce alte non es activate pro iste file ZIM</string>
+  <string name="texttospeech_initialization_failed" fuzzy="true">Le initialisation del motor de synthese vocal ha fallite. Per favor tenta lo de novo</string>
+  <string name="texttospeech_error" fuzzy="true">Error inexpectate in le motor de synthese vocal. Per favor tenta lo de novo</string>
   <string name="next">Sequente</string>
   <string name="previous">Precedente</string>
   <string name="wifi_only_title">Permitter le discargamento de contento per le rete mobile?</string>
@@ -182,7 +185,7 @@
   <string name="crash_title">Ben… isto es embarassante</string>
   <string name="crash_description">Pare que le programma ha collabite.\n\nTe displaciarea adjutar nos a resolver iste problema inviante nos le sequente information?</string>
   <string name="crash_checkbox_language">Tu parametros de lingua</string>
-  <string name="crash_checkbox_zimfiles">Un lista de tu files Zim</string>
+  <string name="crash_checkbox_zimfiles">Un lista de tu files ZIM</string>
   <string name="crash_checkbox_exception">Detalios del collapso</string>
   <string name="crash_checkbox_logs">Registros del application</string>
   <string name="crash_checkbox_device">Detalios sur le apparato</string>
@@ -204,7 +207,6 @@
   <string name="table_of_contents">Tabula de contento</string>
   <string name="select_languages">Selige linguas</string>
   <string name="save_languages">Salveguardar linguas</string>
-  <string name="send_feedback">Inviar opinion</string>
   <string name="expand">Expander</string>
   <string name="history">Historia</string>
   <string name="history_from_current_book">Vider historia de tote le libros</string>
@@ -250,7 +252,7 @@
   <string name="permission_rationale_location">Android require accesso al position geographic pro permitter al application deteger apparatos a proximitate.</string>
   <string name="permission_rationale_nearby">Android require le permission de apparatos a proximitate pro permitter al application deteger apparatos pares.</string>
   <string name="permission_refused_location">Non pote localisar apparatos a proximitate sin accesso al position geographic</string>
-  <string name="permission_refused_storage">Non pote acceder a files Zim sin accesso al immagazinage</string>
+  <string name="permission_refused_storage">Non pote acceder a files ZIM sin accesso al immagazinage</string>
   <string name="request_enable_location">Activa position geographic pro permitter detection de apparatos proxime</string>
   <string name="discovery_needs_location">Non pote discoperir apparatos a proximitate sin servicios de position geographic</string>
   <string name="request_enable_wifi">Activar WiFi P2P in parametros de systema</string>
@@ -312,19 +314,28 @@
   <string name="tabs_restored">Schedas restaurate</string>
   <string name="open_drawer">Aperir tiratorio</string>
   <string name="close_drawer">Clauder tiratorio</string>
-  <string name="zim_files_not_showing">Le file Zim non appare?</string>
-  <string name="zim_files_not_showing_description">A causa del politicas de Google Play sur Android 11 e plus recente, iste application Google Store non pote aperir le files ZIM transferite localmente. Tu pote discargar le files per medio del application, o installar le version complete del application Kiwix de nostre sito web official: %s</string>
-  <string name="understood">Comprendite</string>
+  <string name="preparing_file_for_copy">Preparation pro copiar/displaciar</string>
+  <string name="action_copy">Copiar</string>
+  <string name="move">Displaciar</string>
+  <string name="copy_move_files_dialog_description">Kiwix require que le file ZIM se trova in su proprie directorio de datos. Vole tu copiar o displaciar lo illac?</string>
+  <string name="copy_file_error_message">Error durante le copia del file ZIM: %s.</string>
+  <string name="why_copy_move_files_to_app_directory">Proque displaciar/copiar files al directorio public del app?</string>
+  <string name="copy_move_files_to_app_directory_description">A causa del politicas de Google Play sur Android 11 e plus recente, iste application non pote plus acceder directemente al files immagazinate in altere locos sur iste apparato. Pro permitter le accesso al files seligite, es necessari displaciar o copiar los in un dossier special in le directorio de iste application. Isto permittera acceder al files e aperir los.</string>
+  <string name="move_file_error_message">Error durante le displaciamento del file ZIM: %s.</string>
   <string name="how_to_update_content">Como actualisar contento?</string>
-  <string name="update_content_description">Pro actualisar le contento (un file zim) tu debe discargar le ultime version complete de iste mesme contento. Tu pote facer lo in le section de discargamento.</string>
+  <string name="update_content_description">Pro actualisar le contento (un file ZIM) tu debe discargar le ultime version complete de iste mesme contento. Tu pote facer lo in le section de discargamento.</string>
   <string name="all_files_permission_needed">Permission pro tote le files es necessari</string>
-  <string name="all_files_permission_needed_message">Pro haber accesso a tote le files zim sur le apparato, nos debe haber le permission Tote le files</string>
+  <string name="all_files_permission_needed_message">Pro haber accesso a tote le files ZIM sur le apparato, nos debe haber le permission Tote le files</string>
   <string name="allowed">Permittite</string>
   <string name="not_allowed">Non permittite</string>
   <string name="denied_internet_permission_message">Per favor activa Wi-Fi pro discargar contento</string>
   <string name="system_unable_to_grant_permission_message">Systema incapace de conceder permission!</string>
   <string name="allow">Autorisar</string>
   <string name="swipe_down_for_library">Glissa a basso pro le bibliotheca</string>
+  <string name="reaching_remote_library">Accede al bibliotheca distante…</string>
+  <string name="parsing_remote_library">Analysa le bibliotheca distante…</string>
+  <string name="starting_downloading_remote_library">Comencia a discargar le bibliotheca in linea…</string>
+  <string name="downloading_library">Discarga bibliotheca… \n%s</string>
   <string name="no_notes">Necun nota</string>
   <string name="notes_from_all_books">Vider notas de tote le libros</string>
   <string name="search_notes">Cercar notas</string>
@@ -337,7 +348,7 @@
   <string name="download_tts_language_message">Per favor clicca sur le button Discargar pro discargar automaticamente le lingua necessari.</string>
   <string name="external_link_copied_message">Ligamine externe copiate al area de transferentia</string>
   <string name="read_aloud_service_channel_name">Canal de servicio de lectura in alte voce</string>
-  <string name="read_aloud_channel_description">Controlos de synthese vocal.</string>
+  <string name="read_aloud_channel_description" fuzzy="true">Controlos de synthese vocal.</string>
   <string name="read_aloud_running">Lectura in alte voce in curso</string>
   <string name="backward_history">Historia a retro</string>
   <string name="forward_history">Historia in avante</string>
@@ -355,4 +366,7 @@
   <string name="toolbar_back_button_content_description">Ir al schermo precedente</string>
   <string name="save_or_open_unsupported_files_dialog_title">Salveguardar o aperir iste file?</string>
   <string name="save_or_open_unsupported_files_dialog_message">Si tu elige Aperir, le file se aperira in un application lector externe.</string>
+  <string name="donation_dialog_title">Dona hodie mesmo</string>
+  <string name="donation_dialog_description">%s ha besonio de tu adjuta.</string>
+  <string name="make_donation">Facer un donation</string>
 </resources>

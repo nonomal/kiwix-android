@@ -19,19 +19,27 @@ package org.kiwix.kiwixmobile.core.error
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ResolveInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import org.kiwix.kiwixmobile.core.CoreApp.Companion.coreComponent
+import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.base.BaseActivity
 import org.kiwix.kiwixmobile.core.compat.CompatHelper.Companion.getPackageInformation
 import org.kiwix.kiwixmobile.core.compat.CompatHelper.Companion.getVersionCode
+import org.kiwix.kiwixmobile.core.compat.CompatHelper.Companion.queryIntentActivitiesCompat
+import org.kiwix.kiwixmobile.core.compat.ResolveInfoFlagsCompat
 import org.kiwix.kiwixmobile.core.dao.NewBookDao
 import org.kiwix.kiwixmobile.core.databinding.ActivityKiwixErrorBinding
+import org.kiwix.kiwixmobile.core.extensions.toast
 import org.kiwix.kiwixmobile.core.reader.ZimReaderContainer
+import org.kiwix.kiwixmobile.core.utils.CRASH_AND_FEEDBACK_EMAIL_ADDRESS
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.getCurrentLocale
 import org.kiwix.kiwixmobile.core.utils.files.FileLogger
 import org.kiwix.kiwixmobile.core.zim_manager.MountPointProducer
@@ -87,25 +95,80 @@ open class ErrorActivity : BaseActivity() {
 
   private fun setupReportButton() {
     activityKiwixErrorBinding?.reportButton?.setOnClickListener {
-      sendEmailLauncher.launch(Intent.createChooser(emailIntent(), "Send email..."))
+      lifecycleScope.launch {
+        val emailIntent = emailIntent()
+        val activities = getSupportedEmailApps(emailIntent, supportedEmailPackages)
+        val targetedIntents = createEmailIntents(emailIntent, activities)
+        if (activities.isNotEmpty() && targetedIntents.isNotEmpty()) {
+          val chooserIntent =
+            Intent.createChooser(targetedIntents.removeFirst(), "Send email...")
+          chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, targetedIntents.toTypedArray())
+          sendEmailLauncher.launch(chooserIntent)
+        } else {
+          toast(getString(R.string.no_email_application_installed))
+        }
+      }
     }
   }
+
+  /**
+   * Get a list of supported email apps.
+   */
+  private fun getSupportedEmailApps(
+    emailIntent: Intent,
+    supportedPackages: List<String>
+  ): List<ResolveInfo> {
+    return packageManager.queryIntentActivitiesCompat(emailIntent, ResolveInfoFlagsCompat.EMPTY)
+      .filter {
+        supportedPackages.any(it.activityInfo.packageName::contains)
+      }
+  }
+
+  /**
+   * Create a list of intents for supported email apps.
+   */
+  private fun createEmailIntents(
+    emailIntent: Intent,
+    activities: List<ResolveInfo>
+  ): MutableList<Intent> {
+    return activities.map { resolveInfo ->
+      Intent(emailIntent).apply {
+        setPackage(resolveInfo.activityInfo.packageName)
+      }
+    }.toMutableList()
+  }
+
+  // List of supported email apps
+  private val supportedEmailPackages = listOf(
+    "com.google.android.gm", // Gmail
+    "com.zoho.mail", // Zoho Mail
+    "com.microsoft.office.outlook", // Outlook
+    "com.yahoo.mobile.client.android.mail", // Yahoo Mail
+    "me.bluemail.mail", // BlueMail
+    "ch.protonmail.android", // ProtonMail
+    "com.fsck.k9", // K-9 Mail
+    "com.maildroid", // Maildroid
+    "org.kman.AquaMail", // Aqua Mail
+    "com.edison.android.mail", // Edison Mail
+    "com.readdle.spark", // Spark
+    "com.gmx.mobile.android.mail", // GMX Mail
+    "com.fastmail", // FastMail
+    "ru.mail.mailapp", // Mail.ru
+    "ru.yandex.mail", // Yandex.Mail
+    "de.tutao.tutanota" // Tutanota
+  )
 
   private val sendEmailLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
       restartApp()
     }
 
-  private fun emailIntent(): Intent {
+  private suspend fun emailIntent(): Intent {
     val emailBody = buildBody()
     return Intent(Intent.ACTION_SEND).apply {
       type = "text/plain"
-      putExtra(
-        Intent.EXTRA_EMAIL,
-        arrayOf("android-crash-feedback@kiwix.org")
-      )
+      putExtra(Intent.EXTRA_EMAIL, arrayOf(CRASH_AND_FEEDBACK_EMAIL_ADDRESS))
       putExtra(Intent.EXTRA_SUBJECT, subject)
-      putExtra(Intent.EXTRA_TEXT, emailBody)
       val file = fileLogger.writeLogFile(
         this@ErrorActivity,
         activityKiwixErrorBinding?.allowLogs?.isChecked == true
@@ -119,10 +182,11 @@ open class ErrorActivity : BaseActivity() {
         )
       addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
       putExtra(android.content.Intent.EXTRA_STREAM, path)
+      putExtra(Intent.EXTRA_TEXT, emailBody)
     }
   }
 
-  private fun buildBody(): String = """ 
+  private suspend fun buildBody(): String = """ 
   $initialBody
     
   ${if (activityKiwixErrorBinding?.allowCrash?.isChecked == true && exception != null) exceptionDetails() else ""}
@@ -139,7 +203,7 @@ open class ErrorActivity : BaseActivity() {
     ${exception?.let(::toStackTraceString)}
     """.trimIndent()
 
-  private fun zimFiles(): String {
+  private suspend fun zimFiles(): String {
     val allZimFiles = bookDao.getBooks().joinToString {
       """
       ${it.book.title}:

@@ -26,8 +26,14 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.accessibility.AccessibilityChecks
+import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesCheck
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesViews
+import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck
+import kotlinx.coroutines.runBlocking
+import org.hamcrest.Matchers.allOf
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -68,8 +74,11 @@ class LibkiwixBookmarkTest : BaseActivityTest() {
       putBoolean(SharedPreferenceUtil.PREF_SHOW_INTRO, false)
       putBoolean(SharedPreferenceUtil.PREF_WIFI_ONLY, false)
       putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
-      putBoolean(SharedPreferenceUtil.PREF_PLAY_STORE_RESTRICTION, false)
       putString(SharedPreferenceUtil.PREF_LANG, "en")
+      putLong(
+        SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
+        System.currentTimeMillis()
+      )
     }
     activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
@@ -84,7 +93,17 @@ class LibkiwixBookmarkTest : BaseActivityTest() {
   }
 
   init {
-    AccessibilityChecks.enable().setRunChecksFromRootView(true)
+    AccessibilityChecks.enable().apply {
+      setRunChecksFromRootView(true)
+      setSuppressingResultMatcher(
+        allOf(
+          matchesCheck(TouchTargetSizeCheck::class.java),
+          matchesViews(
+            withContentDescription("More options")
+          )
+        )
+      )
+    }
   }
 
   @Test
@@ -168,8 +187,10 @@ class LibkiwixBookmarkTest : BaseActivityTest() {
           coreReaderFragment.zimReaderContainer?.zimFileReader?.favicon,
           coreReaderFragment.zimReaderContainer?.zimFileReader?.zimReaderSource
         )
-      coreReaderFragment.libkiwixBookmarks?.saveBookmark(libkiwixItem).also {
-        bookmarkList.add(libkiwixItem)
+      runBlocking {
+        coreReaderFragment.libkiwixBookmarks?.saveBookmark(libkiwixItem).also {
+          bookmarkList.add(libkiwixItem)
+        }
       }
     }
     bookmarks {

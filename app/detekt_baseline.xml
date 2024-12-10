@@ -5,7 +5,7 @@
     <ID>EmptyFunctionBlock:None.kt$None${ }</ID>
     <ID>EmptyFunctionBlock:SimplePageChangeListener.kt$SimplePageChangeListener${ }</ID>
     <ID>LongParameterList:ZimManageViewModel.kt$ZimManageViewModel$( booksOnFileSystem: List&lt;BookOnDisk>, activeDownloads: List&lt;DownloadModel>, allLanguages: List&lt;Language>, libraryNetworkEntity: LibraryNetworkEntity, filter: String, fileSystemState: FileSystemState )</ID>
-    <ID>LongParameterList:ZimManageViewModel.kt$ZimManageViewModel$( private val downloadDao: DownloadRoomDao, private val bookDao: NewBookDao, private val languageDao: NewLanguagesDao, private val storageObserver: StorageObserver, private val kiwixService: KiwixService, private val context: Application, private val connectivityBroadcastReceiver: ConnectivityBroadcastReceiver, private val bookUtils: BookUtils, private val fat32Checker: Fat32Checker, private val defaultLanguageProvider: DefaultLanguageProvider, private val dataSource: DataSource, private val connectivityManager: ConnectivityManager, private val sharedPreferenceUtil: SharedPreferenceUtil )</ID>
+    <ID>LongParameterList:ZimManageViewModel.kt$ZimManageViewModel$( private val downloadDao: DownloadRoomDao, private val bookDao: NewBookDao, private val languageDao: NewLanguagesDao, private val storageObserver: StorageObserver, private var kiwixService: KiwixService, val context: Application, private val connectivityBroadcastReceiver: ConnectivityBroadcastReceiver, private val bookUtils: BookUtils, private val fat32Checker: Fat32Checker, private val defaultLanguageProvider: DefaultLanguageProvider, private val dataSource: DataSource, private val connectivityManager: ConnectivityManager, private val sharedPreferenceUtil: SharedPreferenceUtil )</ID>
     <ID>MagicNumber:LibraryListItem.kt$LibraryListItem.LibraryDownloadItem$1000L</ID>
     <ID>MagicNumber:PeerGroupHandshake.kt$PeerGroupHandshake$15000</ID>
     <ID>MagicNumber:ShareFiles.kt$ShareFiles$24</ID>
@@ -17,7 +17,6 @@
     <ID>NestedBlockDepth:ReceiverHandShake.kt$ReceiverHandShake$override fun exchangeFileTransferMetadata(inputStream: InputStream, outputStream: OutputStream)</ID>
     <ID>PackageNaming:AvailableSpaceCalculator.kt$package
       org.kiwix.kiwixmobile.zimManager.libraryView</ID>
-    <ID>PackageNaming:ConnectivityBroadcastReceiver.kt$package org.kiwix.kiwixmobile.zimManager</ID>
     <ID>PackageNaming:DefaultLanguageProvider.kt$package org.kiwix.kiwixmobile.zimManager</ID>
     <ID>PackageNaming:DeleteFiles.kt$package
       org.kiwix.kiwixmobile.zimManager.fileselectView.effects</ID>
@@ -37,7 +36,6 @@
     <ID>PackageNaming:MountFileSystemChecker.kt$package org.kiwix.kiwixmobile.zimManager</ID>
     <ID>PackageNaming:NavigateToDownloads.kt$package
       org.kiwix.kiwixmobile.zimManager.fileselectView.effects</ID>
-    <ID>PackageNaming:NetworkState.kt$package org.kiwix.kiwixmobile.zimManager</ID>
     <ID>PackageNaming:None.kt$package org.kiwix.kiwixmobile.zimManager.fileselectView.effects</ID>
     <ID>PackageNaming:OpenFileWithNavigation.kt$package
       org.kiwix.kiwixmobile.zimManager.fileselectView.effects</ID>
@@ -45,6 +43,11 @@
     <ID>PackageNaming:SimplePageChangeListener.kt$package org.kiwix.kiwixmobile.zimManager</ID>
     <ID>PackageNaming:StartMultiSelection.kt$package
       org.kiwix.kiwixmobile.zimManager.fileselectView.effects</ID>
+    <ID>PackageNaming:HotspotNotificationManager.kt$package org.kiwix.kiwixmobile.webserver.wifi_hotspot</ID>
+    <ID>PackageNaming:HotspotStateReceiver.kt$package org.kiwix.kiwixmobile.webserver.wifi_hotspot</ID>
+    <ID>PackageNaming:IpAddressCallbacks.kt$package org.kiwix.kiwixmobile.webserver.wifi_hotspot</ID>
+    <ID>PackageNaming:HotspotService.kt$package org.kiwix.kiwixmobile.webserver.wifi_hotspot</ID>
+    <ID>PackageNaming:ServerStatus.kt$package org.kiwix.kiwixmobile.webserver.wifi_hotspot</ID>
     <ID>PackageNaming:ZimManageViewModel.kt$package org.kiwix.kiwixmobile.zimManager</ID>
     <ID>ReturnCount:Fat32Checker.kt$Fat32Checker$private fun canCreate4GbFile(storage: String): Boolean</ID>
     <ID>TooGenericExceptionCaught:FileWritingFileSystemChecker.kt$FileWritingFileSystemChecker$e: Exception</ID>

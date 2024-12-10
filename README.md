@@ -2,8 +2,8 @@
 <a href="https://play.google.com/store/apps/details?id=org.kiwix.kiwixmobile" target="_blank" align="left">
   <img src="https://play.google.com/intl/en/badges/images/badge_new.png" alt="Get it on Google Play" height="30" />
 </a>
-<a href="https://f-droid.org/fr/packages/org.kiwix.kiwixmobile/" target="_blank" align="left">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Get_it_on_F-Droid.svg/320px-Get_it_on_F-Droid.svg.png" alt="Get it on F-Droid" height="29" />
+<a href="https://apt.izzysoft.de/fdroid/index/apk/org.kiwix.kiwixmobile" target="_blank" align="left">
+  <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid2.png" alt="Get it on IzzyOnDroid" height="29" />
 </a>
 
 # Kiwix Android
@@ -36,20 +36,20 @@ or if the application data is cleared.  To use the full version of Kiwix
 and benefit of the ZIM file picker feature, you can download it
 directly from the [official
 repository](https://download.kiwix.org/release/kiwix-android/) or use
-[F-Droid](https://fdroid.kiwix.org). We understand that this
+[IzzyOnDroid](https://apt.izzysoft.de/fdroid/index/apk/org.kiwix.kiwixmobile). We understand that this
 restriction may cause inconvenience, but it is necessary to comply
 with the Play Store policies and ensure a smooth user experience.  We
 recommend using the official version of the app available on our
 website to access the complete set of features.
 
-Possible paths for play store version which supports for the scanning/reading zim files.
+Possible paths for play store version which supports for the scanning/reading ZIM files.
 
-| Storage path                                            | Viewable outside kiwix(in File manager) | Could be scanned by Kiwix |
-|---------------------------------------------------------|-----------------------------------------|---------------------------|
-| storge/0/Android/media/org.kiwix.kiwixmobile/           | Yes                                     | Yes                       |
-| storge/0/Android/data/org.kiwix.kiwixmobile/            | No                                      | Yes                       |
-| storge/sdcard-name/Android/media/org.kiwix.kiwixmobile/ | Yes                                     | Yes                       |
-| storge/sdcard-name/Android/data/org.kiwix.kiwixmobile/  | No                                      | Yes                       |
+| Storage path                                              | Viewable outside kiwix(in File manager) | Could be scanned by Kiwix |
+|-----------------------------------------------------------|-----------------------------------------|---------------------------|
+| storage/0/Android/media/org.kiwix.kiwixmobile/            | Yes                                     | Yes                       |
+| storage/0/Android/data/org.kiwix.kiwixmobile/             | No                                      | Yes                       |
+| storage/sdcard-name/Android/media/org.kiwix.kiwixmobile/  | Yes                                     | Yes                       |
+| storage/sdcard-name/Android/data/org.kiwix.kiwixmobile/   | No                                      | Yes                       |
 
 Kiwix Android is written in [Kotlin](https://kotlinlang.org/)
 

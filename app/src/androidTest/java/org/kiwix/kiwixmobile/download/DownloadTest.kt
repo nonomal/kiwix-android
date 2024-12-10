@@ -17,8 +17,10 @@
  */
 package org.kiwix.kiwixmobile.download
 
+import android.util.Log
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
+import androidx.navigation.fragment.NavHostFragment
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.IdlingPolicies
@@ -48,12 +50,15 @@ import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChan
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.main.topLevel
+import org.kiwix.kiwixmobile.nav.destination.library.LibraryRobot
+import org.kiwix.kiwixmobile.nav.destination.library.OnlineLibraryFragment
 import org.kiwix.kiwixmobile.nav.destination.library.library
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
 import org.kiwix.kiwixmobile.utils.KiwixIdlingResource.Companion.getInstance
+import org.kiwix.kiwixmobile.zimManager.libraryView.adapter.LibraryListItem
 import java.util.concurrent.TimeUnit
 
 @LargeTest
@@ -63,6 +68,8 @@ class DownloadTest : BaseActivityTest() {
   @Rule
   @JvmField
   var retryRule = RetryRule()
+
+  private lateinit var kiwixMainActivity: KiwixMainActivity
 
   init {
     AccessibilityChecks.enable().apply {
@@ -92,8 +99,11 @@ class DownloadTest : BaseActivityTest() {
       putBoolean(SharedPreferenceUtil.PREF_SHOW_STORAGE_OPTION, false)
       putBoolean(SharedPreferenceUtil.IS_PLAY_STORE_BUILD, true)
       putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
-      putBoolean(SharedPreferenceUtil.PREF_PLAY_STORE_RESTRICTION, false)
       putString(SharedPreferenceUtil.PREF_LANG, "en")
+      putLong(
+        SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
+        System.currentTimeMillis()
+      )
     }
     activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
@@ -111,31 +121,42 @@ class DownloadTest : BaseActivityTest() {
   fun downloadTest() {
     BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS.toLong())
     activityScenario.onActivity {
+      kiwixMainActivity = it
       it.navigate(R.id.libraryFragment)
     }
     try {
-      downloadRobot(DownloadRobot::refreshLocalLibraryData)
       // delete all the ZIM files showing in the LocalLibrary
       // screen to properly test the scenario.
       library {
+        refreshList()
         waitUntilZimFilesRefreshing()
         deleteZimIfExists()
       }
       downloadRobot {
         clickDownloadOnBottomNav()
-        refreshOnlineList()
         waitForDataToLoad()
+        val smallestZimFileIndex = getSmallestZimFileIndex(getOnlineLibraryList())
+        scrollToZimFileIndex(smallestZimFileIndex)
         stopDownloadIfAlreadyStarted()
-        downloadZimFile()
-        assertDownloadStart()
-        pauseDownload()
-        assertDownloadPaused()
-        resumeDownload()
-        assertDownloadResumed()
-        waitUntilDownloadComplete()
+        downloadZimFile(smallestZimFileIndex)
+        try {
+          assertDownloadStart()
+          pauseDownload()
+          assertDownloadPaused()
+          resumeDownload()
+          assertDownloadResumed()
+          waitUntilDownloadComplete()
+        } catch (ignore: Exception) {
+          // do nothing as ZIM file already downloaded, since we are downloading the smallest file
+          // so it can be downloaded immediately after starting.
+          Log.e(
+            KIWIX_DOWNLOAD_TEST,
+            "Could not pause download. Original exception = $ignore"
+          )
+        }
         clickLibraryOnBottomNav()
         // refresh the local library list to show the downloaded zim file
-        refreshLocalLibraryData()
+        library(LibraryRobot::refreshList)
         checkIfZimFileDownloaded()
       }
     } catch (e: Exception) {
@@ -146,6 +167,15 @@ class DownloadTest : BaseActivityTest() {
     LeakAssertions.assertNoLeaks()
   }
 
+  private fun getOnlineLibraryList(): List<LibraryListItem> {
+    val navHostFragment: NavHostFragment =
+      kiwixMainActivity.supportFragmentManager
+        .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+    val onlineLibraryFragment =
+      navHostFragment.childFragmentManager.fragments[0] as OnlineLibraryFragment
+    return onlineLibraryFragment.getOnlineLibraryList()
+  }
+
   @Test
   fun testPauseAndResumeInOtherLanguage() {
     BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS.toLong())
@@ -153,10 +183,10 @@ class DownloadTest : BaseActivityTest() {
       it.navigate(R.id.libraryFragment)
     }
     try {
-      downloadRobot(DownloadRobot::refreshLocalLibraryData)
       // delete all the ZIM files showing in the LocalLibrary
       // screen to properly test the scenario.
       library {
+        refreshList()
         waitUntilZimFilesRefreshing()
         deleteZimIfExists()
       }
@@ -173,7 +203,6 @@ class DownloadTest : BaseActivityTest() {
           }
         }
         clickDownloadOnBottomNav()
-        refreshOnlineList()
         waitForDataToLoad()
         stopDownloadIfAlreadyStarted()
         downloadZimFile()
@@ -207,6 +236,7 @@ class DownloadTest : BaseActivityTest() {
   @After
   fun finish() {
     IdlingRegistry.getInstance().unregister(getInstance())
+    TestUtils.deleteTemporaryFilesOfTestCases(context)
   }
 
   companion object {

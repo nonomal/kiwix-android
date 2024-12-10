@@ -45,6 +45,8 @@
   <string name="server_started_message">Gitt dës IP-Adress an Äre Browser a fir op de Server %s zouzegräifen</string>
   <string name="share_host_address">URL mat aneren Applikatiounen deelen</string>
   <string name="error_file_not_found">Feeler: Déi ausgewielten ZIM-Datei konnt net fonnt ginn.</string>
+  <string name="unable_to_read_zim_file">Dëse ZIM-Fichier konnt net gelies ginn!</string>
+  <string name="zim_not_opened">De ZIM-Fichier konnt net opgemaach ginn</string>
   <string name="error_file_invalid">Feeler: Déi ausgewielten Datei ass keng gülteg ZIM-Datei.</string>
   <string name="error_article_url_not_found">Feeler: D’Luede vum Artikel (URL: %1$s) huet net funktionéiert.</string>
   <string name="pref_display_title">Weisen</string>
@@ -111,13 +113,13 @@
   <string name="help_8">• Wikipedia ass fir all Sprooch separat verfügbar</string>
   <string name="help_9">• Aner Inhalter wéi Wikileaks oder Wikisource sinn och verfügbar</string>
   <string name="pref_current_folder">Aktuelle Repertoire</string>
+  <string name="pref_storage_used">%s benotzt</string>
   <string name="pref_free_storage">%s fräi</string>
   <string name="tts_pause">pauséieren</string>
   <string name="tts_resume">virufueren</string>
   <string name="stop">stopp</string>
   <string name="internal_storage">Intern</string>
   <string name="external_storage">Extern</string>
-  <string name="configure">Configuréieren</string>
   <string name="yes">Jo</string>
   <string name="no">Neen</string>
   <string name="confirm_stop_download_title">Erofluede stoppen?</string>
@@ -137,7 +139,9 @@
   <string name="your_languages">Erausgesicht Sproochen:</string>
   <string name="other_languages">Aner Sproochen:</string>
   <string name="crash_checkbox_language">Är Sproochastellungen</string>
+  <string name="crash_checkbox_zimfiles">Eng Lëscht vun Äre ZIM-Fichieren</string>
   <string name="crash_checkbox_device">Detailer vum Apparat</string>
+  <string name="crash_button_confirm">DETAILER SCHÉCKEN</string>
   <string name="new_tab_shortcut_label">Neien Tab</string>
   <string name="articleCount">%s Artikelen</string>
   <string name="get_started">Ufänken</string>
@@ -151,7 +155,6 @@
   <string name="table_of_contents">Inhaltsverzeechnes</string>
   <string name="select_languages">Sproochen eraussichen</string>
   <string name="save_languages">Sprooche späicheren</string>
-  <string name="send_feedback">Feedback schécken</string>
   <string name="selected_items">%1$d ausgewielt</string>
   <string name="search_bookmarks">Lieszeechen duerchsichen</string>
   <string name="switch_tabs">Tabs wiesselen</string>
@@ -160,11 +163,16 @@
   <string name="running_state">Amgaang</string>
   <string name="complete">Komplettéieren</string>
   <string name="paused_state">Pauséiert</string>
+  <string name="custom_download_error_message_for_authentication_failed">De ZIM-Fichier konnt net erofgeluede ginn. Probéiert wgl. d\'App vum Play Store aus nei z\'installéieren.</string>
   <string name="save">Späicheren</string>
+  <string name="note">Notiz</string>
+  <string name="take_notes">Notize maachen</string>
   <string name="wiki_article_title">Wiki-Artikel-Titel</string>
   <string name="export_bookmark_error">Beim Exportéiere vum Lieszeechen ass ee Feeler geschitt!</string>
-  <string name="note_delete_successful">D’Notiz gouf geläscht</string>
-  <string name="note_delete_unsuccessful">D’Notiz gouf net geläscht</string>
+  <string name="note_save_unsuccessful">Notiz erfollegräich gespäichert</string>
+  <string name="note_delete_successful">Notiz erfollegräich geläscht</string>
+  <string name="note_delete_unsuccessful">Notiz gouf net geläscht</string>
+  <string name="note_save_successful">Notiz gespäichert</string>
   <string name="note_share_error_file_missing">De Fichier mat den Notize gëtt et net</string>
   <string name="note_share_app_chooser_title">De Fichier mat den Notizen deele mat:</string>
   <string name="delete_notes_confirmation_msg">All d’Notize läschen?</string>
@@ -184,7 +192,9 @@
   <string name="no_bookmarks">Keng Lieszeechen!</string>
   <string name="no_history">Keen Historique</string>
   <string name="delete_history">De kompletten Historique läschen?</string>
+  <string name="delete_selected_history">Den ausgewielten Historique läschen?</string>
   <string name="delete_bookmarks">All Lieszeeche läschen?</string>
+  <string name="delete_selected_bookmarks">Déi ausgewielte Lieszeeche läschen?</string>
   <string name="import_bookmarks_dialog_title">Lieszeechen importéieren?</string>
   <string name="export_all_bookmarks_dialog_title">All Lieszeechen exportéieren?</string>
   <string name="export_all_bookmarks_dialog_message">Beim Exportéiere gëtt ee Fichier „bookmark.xml“ am Dossier „Download/org.kiwix…/“ ugeluecht.</string>
@@ -202,7 +212,13 @@
   <string name="open_library">Bibliothéik opmaachen</string>
   <string name="open_drawer">Tirang opmaachen</string>
   <string name="close_drawer">Tirang zoumaachen</string>
-  <string name="understood">Verstanen</string>
+  <string name="preparing_file_for_copy">Virbereede fir ze kopéieren/réckelen</string>
+  <string name="action_copy">Kopéieren</string>
+  <string name="move">Réckelen</string>
+  <string name="copying_zim_file">ZIM-Fichier kopéieren…</string>
+  <string name="moving_zim_file">ZIM-Fichier réckelen…</string>
+  <string name="copy_file_error_message">Feeler beim Kopéiere vum ZIM-FIchier: %s.</string>
+  <string name="move_file_error_message">Feeler beim Réckele vum ZIM-FIchier: %s.</string>
   <string name="allowed">Erlaabt</string>
   <string name="not_allowed">Net erlaabt</string>
   <string name="allow">Erlaben</string>
@@ -217,4 +233,7 @@
   <string name="go_to_settings_label">Op d’Astellunge goen</string>
   <string name="save_or_open_unsupported_files_dialog_title">Dëse Fichier Späicheren oder Opmaachen?</string>
   <string name="save_or_open_unsupported_files_dialog_message">Wann dir „Opmaachen“ wielt, gëtt de Fichier an enger externer Lies-Applikatioun opgemaach.</string>
+  <string name="donation_dialog_title">Maacht haut een Don</string>
+  <string name="donation_dialog_description">%s brauch Är Hëllef.</string>
+  <string name="make_donation">En Don maachen</string>
 </resources>

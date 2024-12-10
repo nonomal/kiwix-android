@@ -52,6 +52,7 @@ import org.kiwix.kiwixmobile.core.base.BaseActivity
 import org.kiwix.kiwixmobile.core.base.BaseFragment
 import org.kiwix.kiwixmobile.core.databinding.FragmentSearchBinding
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.cachedComponent
+import org.kiwix.kiwixmobile.core.extensions.closeKeyboard
 import org.kiwix.kiwixmobile.core.extensions.coreMainActivity
 import org.kiwix.kiwixmobile.core.extensions.setUpSearchView
 import org.kiwix.kiwixmobile.core.extensions.viewModel
@@ -71,6 +72,7 @@ import org.kiwix.kiwixmobile.core.search.viewmodel.Action.OnOpenInNewTabClick
 import org.kiwix.kiwixmobile.core.search.viewmodel.SearchOrigin.FromWebView
 import org.kiwix.kiwixmobile.core.search.viewmodel.SearchState
 import org.kiwix.kiwixmobile.core.search.viewmodel.SearchViewModel
+import org.kiwix.kiwixmobile.core.utils.EXTRA_IS_WIDGET_VOICE
 import org.kiwix.kiwixmobile.core.utils.SimpleTextListener
 import org.kiwix.kiwixmobile.core.utils.files.Log
 import javax.inject.Inject
@@ -87,6 +89,7 @@ class SearchFragment : BaseFragment() {
 
   private var searchView: SearchView? = null
   private var searchInTextMenuItem: MenuItem? = null
+  private var searchMenuItem: MenuItem? = null
   private var findInPageTextView: TextView? = null
   private var fragmentSearchBinding: FragmentSearchBinding? = null
 
@@ -206,10 +209,15 @@ class SearchFragment : BaseFragment() {
     renderingJob?.cancel()
     renderingJob = null
     activity?.intent?.action = null
+    searchView?.setOnQueryTextListener(null)
     searchView = null
     searchInTextMenuItem = null
     findInPageTextView = null
+    searchMenuItem?.setOnActionExpandListener(null)
+    searchMenuItem = null
+    fragmentSearchBinding?.searchList?.adapter = null
     searchAdapter = null
+    fragmentSearchBinding?.root?.removeAllViews()
     fragmentSearchBinding = null
   }
 
@@ -223,9 +231,9 @@ class SearchFragment : BaseFragment() {
       object : MenuProvider {
         override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
           menuInflater.inflate(R.menu.menu_search, menu)
-          val searchMenuItem = menu.findItem(R.id.menu_search)
-          searchMenuItem.expandActionView()
-          searchView = searchMenuItem.actionView as SearchView
+          searchMenuItem = menu.findItem(R.id.menu_search)
+          searchMenuItem?.expandActionView()
+          searchView = searchMenuItem?.actionView as SearchView
           searchView?.apply {
             setUpSearchView(requireActivity())
             searchView?.setOnQueryTextListener(
@@ -248,7 +256,7 @@ class SearchFragment : BaseFragment() {
             )
           }
 
-          searchMenuItem.setOnActionExpandListener(object : OnActionExpandListener {
+          searchMenuItem?.setOnActionExpandListener(object : OnActionExpandListener {
             override fun onMenuItemActionExpand(item: MenuItem) = false
 
             override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
@@ -270,6 +278,12 @@ class SearchFragment : BaseFragment() {
             searchView?.setQuery(searchStringFromArguments, false)
           }
           searchViewModel.actions.trySend(Action.CreatedWithArguments(arguments)).isSuccess
+          arguments?.remove(EXTRA_IS_WIDGET_VOICE)
+          searchViewModel.voiceSearchResult.observe(viewLifecycleOwner) { searchTerm ->
+            searchTerm?.let {
+              searchView?.setQuery(it, false)
+            }
+          }
         }
 
         override fun onMenuItemSelected(menuItem: MenuItem) = true
@@ -342,10 +356,12 @@ class SearchFragment : BaseFragment() {
   }
 
   private fun onItemClick(it: SearchListItem) {
+    closeKeyboard()
     searchViewModel.actions.trySend(OnItemClick(it)).isSuccess
   }
 
   private fun onItemClickNewTab(it: SearchListItem) {
+    closeKeyboard()
     searchViewModel.actions.trySend(OnOpenInNewTabClick(it)).isSuccess
   }
 

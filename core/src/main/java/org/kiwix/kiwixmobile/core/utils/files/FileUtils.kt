@@ -18,29 +18,30 @@
 package org.kiwix.kiwixmobile.core.utils.files
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
-import android.content.Intent
 import android.content.res.AssetFileDescriptor
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Environment.DIRECTORY_DOWNLOADS
+import android.os.storage.StorageManager
 import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.webkit.URLUtil
-import android.widget.Toast
 import androidx.core.content.ContextCompat
-import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.kiwix.kiwixmobile.core.CoreApp
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.downloader.ChunkUtils
 import org.kiwix.kiwixmobile.core.entity.LibraryNetworkEntity.Book
 import org.kiwix.kiwixmobile.core.extensions.deleteFile
 import org.kiwix.kiwixmobile.core.extensions.isFileExist
-import org.kiwix.kiwixmobile.core.extensions.toast
 import org.kiwix.kiwixmobile.core.reader.ZimReaderContainer
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import java.io.BufferedReader
@@ -50,6 +51,8 @@ import java.io.FileNotFoundException
 import java.io.IOException
 
 object FileUtils {
+
+  private val fileOperationMutex = Mutex()
 
   @JvmStatic
   fun getFileCacheDir(context: Context): File? =
@@ -68,38 +71,38 @@ object FileUtils {
   }
 
   @JvmStatic
-  @Synchronized
-  fun deleteZimFile(path: String) {
-    var path = path
-    if (path.substring(path.length - ChunkUtils.PART.length) == ChunkUtils.PART) {
-      path = path.substring(0, path.length - ChunkUtils.PART.length)
-    }
-    Log.i("kiwix", "Deleting file: $path")
-    val file = File(path)
-    if (file.path.substring(file.path.length - 3) != "zim") {
-      var alphabetFirst = 'a'
-      fileloop@ while (alphabetFirst <= 'z') {
-        var alphabetSecond = 'a'
-        while (alphabetSecond <= 'z') {
-          val chunkPath = path.substring(0, path.length - 2) + alphabetFirst + alphabetSecond
-          val fileChunk = File(chunkPath)
-          if (fileChunk.isFileExist()) {
-            fileChunk.deleteFile()
-          } else if (!deleteZimFileParts(chunkPath)) {
-            break@fileloop
-          }
-          alphabetSecond++
-        }
-        alphabetFirst++
+  suspend fun deleteZimFile(path: String) {
+    fileOperationMutex.withLock {
+      var path = path
+      if (path.substring(path.length - ChunkUtils.PART.length) == ChunkUtils.PART) {
+        path = path.substring(0, path.length - ChunkUtils.PART.length)
       }
-    } else {
-      file.deleteFile()
-      deleteZimFileParts(path)
+      val file = File(path)
+      if (file.path.substring(file.path.length - 3) != "zim") {
+        var alphabetFirst = 'a'
+        fileloop@ while (alphabetFirst <= 'z') {
+          var alphabetSecond = 'a'
+          while (alphabetSecond <= 'z') {
+            val chunkPath = path.substring(0, path.length - 2) + alphabetFirst + alphabetSecond
+            val fileChunk = File(chunkPath)
+            if (fileChunk.isFileExist()) {
+              fileChunk.deleteFile()
+            } else if (!deleteZimFileParts(chunkPath)) {
+              break@fileloop
+            }
+            alphabetSecond++
+          }
+          alphabetFirst++
+        }
+      } else {
+        file.deleteFile()
+        deleteZimFileParts(path)
+      }
     }
   }
 
-  @Synchronized
-  private fun deleteZimFileParts(path: String): Boolean {
+  @Suppress("ReturnCount")
+  private suspend fun deleteZimFileParts(path: String): Boolean {
     val file = File(path + ChunkUtils.PART)
     if (file.isFileExist()) {
       file.deleteFile()
@@ -144,7 +147,7 @@ object FileUtils {
         }
     } else if (uri.scheme != null) {
       if ("content".equals(uri.scheme, ignoreCase = true)) {
-        return contentQuery(context, uri)
+        return getFilePathOfContentUri(context, uri)
       } else if ("file".equals(uri.scheme, ignoreCase = true)) {
         return uri.path
       }
@@ -154,6 +157,143 @@ object FileUtils {
 
     return null
   }
+
+  /**
+   * Retrieves the file path from a given content URI. This method first attempts to get the path
+   * using the content resolver (via `contentQuery`). If that returns null or empty, it falls back
+   * to a secondary method to resolve the actual path.
+   *
+   * This fallback is especially necessary when:
+   * 1. The user clicks directly on a downloaded file from browsers, where different browsers
+   *    return URIs using their own file providers.
+   * 2. On devices below Android 11, when files are clicked directly in the file manager, the content
+   *    resolver may not be able to retrieve the path for certain URIs.
+   */
+  private fun getFilePathOfContentUri(context: Context, uri: Uri): String? {
+    val filePath = contentQuery(context, uri)
+    return if (!filePath.isNullOrEmpty()) {
+      filePath
+    } else {
+      // Fallback method to get the actual path of the URI
+      getActualFilePathOfContentUri(context, uri)
+    }
+  }
+
+  private fun getFullFilePathFromFilePath(
+    context: Context,
+    filePath: String?
+  ): String? {
+    var actualFilePath: String? = null
+    if (filePath?.isNotEmpty() == true) {
+      getStorageVolumesList(context).forEach { volume ->
+        // Check if the volume is part of the file path and remove it
+        val trimmedFilePath = filePath.removePrefix(volume)
+        val file = File("$volume/$trimmedFilePath")
+        if (file.isFileExist()) {
+          actualFilePath = file.path
+        }
+      }
+    }
+    return actualFilePath
+  }
+
+  private fun getStorageVolumesList(context: Context): HashSet<String> {
+    val storageVolumes = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+    val storageVolumesList = HashSet<String>()
+    storageVolumes.storageVolumes.filterNotNull().forEach {
+      if (it.isPrimary) {
+        storageVolumesList.add("${Environment.getExternalStorageDirectory()}/")
+      } else {
+        val externalStorageName = it.uuid?.let { uuid ->
+          "/$uuid/"
+        } ?: kotlin.run {
+          "/${it.getDescription(context)}/"
+        }
+        storageVolumesList.add("/storage$externalStorageName")
+      }
+    }
+    return storageVolumesList
+  }
+
+  private fun getFileNameFromUri(context: Context, uri: Uri): String? {
+    var cursor: Cursor? = null
+    val projection = arrayOf(
+      MediaStore.MediaColumns.DISPLAY_NAME
+    )
+    return try {
+      cursor = context.contentResolver.query(
+        uri, projection, null, null,
+        null
+      )
+      if (cursor != null && cursor.moveToFirst()) {
+        val index = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+        cursor.getString(index)
+      } else {
+        null
+      }
+    } catch (ignore: Exception) {
+      null
+    } finally {
+      cursor?.close()
+    }
+  }
+
+  /**
+   * Retrieves the actual file path from a given content URI. This method handles various cases based on
+   * the type of URI and the source (file managers, browser downloads, etc.).
+   *
+   * 1. For file managers that include the full file path in the URI (common in devices below Android 11),
+   *    it triggers when the user clicks directly on the ZIM file in the file manager. The file manager may
+   *    return the path with their own file provider, and we extract the path.
+   *
+   * 2. For URIs from the download provider (e.g., when opening files directly from browsers), this method
+   *    constructs the full path using the `DIRECTORY_DOWNLOADS` directory and the file name.
+   *
+   * 3. For other URIs, it attempts to resolve the full file path from the provided URI using a custom
+   *    method to retrieve the folder and file path.
+   */
+  private fun getActualFilePathOfContentUri(context: Context, uri: Uri): String? {
+    return when {
+      // For file managers that provide the full path in the URI (common on devices below Android 11).
+      // This triggers when the user clicks directly on a ZIM file in the file manager, and the file
+      // manager returns the path via its own file provider.
+      "$uri".contains("root") && "$uri".endsWith("zim") -> {
+        "$uri".substringAfter("/root")
+      }
+
+      // Handles URIs from the download provider, commonly used when files are opened from browsers.
+      // Some browsers return URIs with their DownloadProvider.
+      isDownloadProviderUri(uri) -> {
+        getFullFilePathFromFilePath(
+          context,
+          "$DIRECTORY_DOWNLOADS/${getFileNameFromUri(context, uri)}"
+        )
+      }
+
+      else -> {
+        // Attempts to retrieve the full path from the URI using a custom method.
+        getFullFilePathFromFilePath(
+          context,
+          getFilePathWithFolderFromUri(uri)
+        )
+      }
+    }
+  }
+
+  private fun getFilePathWithFolderFromUri(uri: Uri): String? {
+    val pathSegments = uri.pathSegments
+    if (pathSegments.isNotEmpty()) {
+      // Returns the path of the folder containing the file with the specified fileName,
+      // from which the user selects the file.
+      return pathSegments.drop(1)
+        .filterNot { it.startsWith("0") } // remove the prefix of primary storage device
+        .joinToString(separator = "/")
+    }
+    return null
+  }
+
+  private fun isDownloadProviderUri(uri: Uri): Boolean =
+    "$uri".contains("DownloadProvider") || "$uri".contains("/downloads")
 
   fun documentProviderContentQuery(
     context: Context,
@@ -184,7 +324,14 @@ object FileUtils {
       actualDocumentId,
       contentUriPrefixes,
       documentsContractWrapper
-    )
+    ) ?: kotlin.run {
+      // Fallback method to get the actual path of the URI. This will be called
+      // when queryForActualPath returns null, especially in cases where the user directly opens
+      // the file from the file manager in the downloads folder, and the URI contains a different
+      // document ID (particularly on tablets). See https://github.com/kiwix/kiwix-android/issues/4008
+      val fileName = getFileNameFromUri(context, uri)
+      getFullFilePathFromFilePath(context, "$DIRECTORY_DOWNLOADS/$fileName")
+    }
   }
 
   private fun queryForActualPath(
@@ -356,49 +503,6 @@ object FileUtils {
     context.getExternalFilesDirs("")
       .firstOrNull { it.path.contains(storageName) }
       ?.path?.substringBefore(context.getString(R.string.android_directory_seperator))
-
-  @SuppressLint("WrongConstant")
-  @JvmStatic
-  fun getPathFromUri(activity: Activity, data: Intent): String? {
-    val uri: Uri? = data.data
-    val takeFlags: Int = data.flags and (
-      Intent.FLAG_GRANT_READ_URI_PERMISSION
-        or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-      )
-    uri?.let {
-      activity.grantUriPermission(
-        activity.packageName, it,
-        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-      )
-      activity.contentResolver.takePersistableUriPermission(it, takeFlags)
-
-      val dFile = DocumentFile.fromTreeUri(activity, it)
-      if (dFile != null) {
-        dFile.uri.path?.let { file ->
-          val originalPath = file.substring(
-            file.lastIndexOf(":") + 1
-          )
-          val path = "${activity.getExternalFilesDirs("")[1]}"
-          return@getPathFromUri path.substringBefore(
-            activity.getString(R.string.android_directory_seperator)
-          )
-            .plus(File.separator).plus(originalPath)
-        }
-      }
-      activity.toast(
-        activity.resources
-          .getString(R.string.system_unable_to_grant_permission_message),
-        Toast.LENGTH_SHORT
-      )
-    } ?: run {
-      activity.toast(
-        activity.resources
-          .getString(R.string.system_unable_to_grant_permission_message),
-        Toast.LENGTH_SHORT
-      )
-    }
-    return null
-  }
 
   /*
    * This method returns a file name guess from the url using URLUtils.guessFileName()

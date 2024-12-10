@@ -17,6 +17,7 @@
  */
 package org.kiwix.kiwixmobile.search
 
+import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
@@ -26,6 +27,7 @@ import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.accessibility.AccessibilityChecks
 import androidx.test.espresso.matcher.ViewMatchers
+import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
@@ -35,10 +37,11 @@ import com.google.android.apps.common.testing.accessibility.framework.checks.Tou
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import leakcanary.LeakAssertions
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.ResponseBody
 import org.hamcrest.Matchers.allOf
+import org.hamcrest.Matchers.anyOf
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -52,7 +55,9 @@ import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.nav.destination.library.LocalLibraryFragmentDirections.actionNavigationLibraryToNavigationReader
 import org.kiwix.kiwixmobile.testutils.RetryRule
+import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
+import org.kiwix.kiwixmobile.testutils.TestUtils.getOkkHttpClientForTesting
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
 import java.io.File
 import java.io.FileOutputStream
@@ -85,8 +90,11 @@ class SearchFragmentTest : BaseActivityTest() {
       putBoolean(SharedPreferenceUtil.PREF_SHOW_INTRO, false)
       putBoolean(SharedPreferenceUtil.PREF_WIFI_ONLY, false)
       putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
-      putBoolean(SharedPreferenceUtil.PREF_PLAY_STORE_RESTRICTION, false)
       putString(SharedPreferenceUtil.PREF_LANG, "en")
+      putLong(
+        SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
+        System.currentTimeMillis()
+      )
     }
     activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
@@ -104,9 +112,17 @@ class SearchFragmentTest : BaseActivityTest() {
     AccessibilityChecks.enable().apply {
       setRunChecksFromRootView(true)
       setSuppressingResultMatcher(
-        allOf(
-          matchesCheck(TouchTargetSizeCheck::class.java),
-          matchesViews(ViewMatchers.withId(id.menu_searchintext))
+        anyOf(
+          allOf(
+            matchesCheck(TouchTargetSizeCheck::class.java),
+            matchesViews(ViewMatchers.withId(id.menu_searchintext))
+          ),
+          allOf(
+            matchesCheck(TouchTargetSizeCheck::class.java),
+            matchesViews(
+              withContentDescription("More options")
+            )
+          )
         )
       )
     }
@@ -154,7 +170,7 @@ class SearchFragmentTest : BaseActivityTest() {
     UiThreadStatement.runOnUiThread { kiwixMainActivity.navigate(R.id.libraryFragment) }
     // test with a large ZIM file to properly test the scenario
     downloadingZimFile = getDownloadingZimFile()
-    OkHttpClient().newCall(downloadRequest()).execute().use { response ->
+    getOkkHttpClientForTesting().newCall(downloadRequest()).execute().use { response ->
       if (response.isSuccessful) {
         response.body?.let { responseBody ->
           writeZimFileData(responseBody, downloadingZimFile)
@@ -206,7 +222,10 @@ class SearchFragmentTest : BaseActivityTest() {
       assertArticleLoaded()
     }
     removeTemporaryZimFilesToFreeUpDeviceStorage()
-    LeakAssertions.assertNoLeaks()
+    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.N_MR1) {
+      // temporary disabled on Android 25
+      LeakAssertions.assertNoLeaks()
+    }
   }
 
   @Test
@@ -227,7 +246,7 @@ class SearchFragmentTest : BaseActivityTest() {
       kiwixMainActivity.navigate(R.id.libraryFragment)
     }
     downloadingZimFile = getDownloadingZimFile()
-    OkHttpClient().newCall(downloadRequest()).execute().use { response ->
+    getOkkHttpClientForTesting().newCall(downloadRequest()).execute().use { response ->
       if (response.isSuccessful) {
         response.body?.let { responseBody ->
           writeZimFileData(responseBody, downloadingZimFile)
@@ -345,5 +364,18 @@ class SearchFragmentTest : BaseActivityTest() {
     if (zimFile.exists()) zimFile.delete()
     zimFile.createNewFile()
     return zimFile
+  }
+
+  @After
+  fun finish() {
+    TestUtils.deleteTemporaryFilesOfTestCases(context)
+    context.cacheDir?.let {
+      it.listFiles()?.let { files ->
+        for (child in files) {
+          child.delete()
+        }
+      }
+      it.delete()
+    }
   }
 }

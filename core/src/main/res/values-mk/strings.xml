@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Authors:
 * Bjankuloski06
+* MohitMali
 -->
 <resources>
   <string name="menu_help">Помош</string>
@@ -71,7 +72,7 @@
   <string name="pref_credits_title">Признанија</string>
   <string name="tts_lang_not_supported">Јазикот на оваа страница не е поддржан. Статијата може да биде неправилно испишана.</string>
   <string name="no_reader_application_installed">Не можев да најдам воспоставен приложник за овој вид податотека</string>
-  <string name="no_email_application_installed">Воспоставете услужник за е-пошта или пишете ни на %1s</string>
+  <string name="no_email_application_installed">Ве молиме инсталирајте клиент за е-пошта</string>
   <string name="no_app_found_to_select_bookmark_file">Не пронајдов прилог за избирање на податотека со обележани</string>
   <string name="no_section_info">Не пронајдов содржински заглавија</string>
   <string name="request_storage">Ќе треба пристап до вашиот склад за да дојдам до вонмрежната содржина</string>
@@ -126,6 +127,7 @@
   <string name="download">Преземи</string>
   <string name="download_notification_channel_name">Име на каналот за известување за преземања</string>
   <string name="space_available">Достапен простор:</string>
+  <string name="move_no_space">Нема доволно простор за преместување/копирање.</string>
   <string name="zim_simple">Просто</string>
   <string name="zim_no_pic">Без слики</string>
   <string name="zim_no_vid">Нема видеа</string>
@@ -144,22 +146,21 @@
   <string name="pref_current_folder">Тековна папка</string>
   <string name="pref_storage_used">%s искористено</string>
   <string name="pref_free_storage">%s слободно</string>
+  <string name="choose_storage_to_download_book">Изберете складиште за преземање на книгата</string>
   <string name="delete_zim_failed">За жал, не можев да избришам извесни податотеки. Пробајте со Управувачот со податотеки.</string>
   <string name="tts_pause">паузирај</string>
   <string name="tts_resume">продолжи</string>
   <string name="stop">запри</string>
-  <string name="configure_storage_option">Да ја преземам книгата во внатрешен склад?</string>
   <string name="internal_storage">Внатрешен</string>
   <string name="external_storage">Надворешен</string>
-  <string name="configure">Нагоди</string>
   <string name="yes">Да</string>
   <string name="no">Не</string>
   <string name="confirm_stop_download_title">Да го прекинам преземањето?</string>
   <string name="confirm_stop_download_msg">Дали сте сигурни дека сакате да го запрете преземањево?</string>
   <string name="download_change_storage">Избор на складишник</string>
-  <string name="tts_not_enabled">Претворањето текст во говор не е овозможено за оваа ZIM-податотека</string>
-  <string name="texttospeech_initialization_failed">Не успеав да го покренам „Текст во говор“. Обидете се повторно.</string>
-  <string name="texttospeech_error">Се јави неочекувана грешка во „Текст во говор“. Обидете се повторно.</string>
+  <string name="tts_not_enabled">Читањето на глас не е овозможено за оваа ZIM-податотека</string>
+  <string name="texttospeech_initialization_failed">Не успеав да го покренам „Прочитај на глас“. Обидете се повторно.</string>
+  <string name="texttospeech_error">Се јави неочекувана грешка во „Прочитај на глас“. Обидете се повторно.</string>
   <string name="next">Следно</string>
   <string name="previous">Претходно</string>
   <string name="wifi_only_title">Дозволувате преземање на содржини преку мобилна мрежа?</string>
@@ -205,7 +206,6 @@
   <string name="table_of_contents">Содржина</string>
   <string name="select_languages">Одберете јазици</string>
   <string name="save_languages">Зачувај јазици</string>
-  <string name="send_feedback">Испрати мислење</string>
   <string name="expand">Прикажи</string>
   <string name="history">Историја</string>
   <string name="history_from_current_book">Историја од сите книги</string>
@@ -222,9 +222,10 @@
   <string name="complete">Завршено</string>
   <string name="paused_state">Паузирано</string>
   <string name="failed_state">Не успеа: %s</string>
-  <string name="custom_download_error_message_for_authentication_failed">Не можев да ја преземам zim-податотеката. Превоспоставете го прилогот од Play store.</string>
+  <string name="custom_download_error_message_for_authentication_failed">Не можев да ја преземам ZIM-податотеката. Превоспоставете го прилогот од Play store.</string>
   <string name="save">Зачувај</string>
   <string name="note">Белешка</string>
+  <string name="take_notes">Прави белешки</string>
   <string name="wiki_article_title">Наслов на викистатијата</string>
   <string name="ext_storage_permission_rationale_export_bookmark">Се бара складиштен пристап за извезување на обележувачи</string>
   <string name="ext_storage_write_permission_denied_export_bookmark">Обележувачите не можат да се извезат без складиштен пристап</string>
@@ -313,9 +314,17 @@
   <string name="tabs_restored">Јазичињата се повратени</string>
   <string name="open_drawer">Отвори фиока</string>
   <string name="close_drawer">Затвори фиока</string>
-  <string name="zim_files_not_showing">ZIM-податотеките не се прикажуваат?</string>
-  <string name="zim_files_not_showing_description">Поради правилата на Google Play за Андроид 11 и подоцнежни, овој прилог од Google Store не може да отвора настрана преземени ZIM-податотеки. Мора да ги преземете преку прилогот или пак да ја воспоставите целосната верзија на прилогот Кивикс од нашата официјална страница %s</string>
-  <string name="understood">Јасно</string>
+  <string name="preparing_file_for_copy">Подготовка за копирање/преместување</string>
+  <string name="action_copy">Копирај</string>
+  <string name="move">Премести</string>
+  <string name="copying_zim_file">Ја копирам ZIM податотеката…</string>
+  <string name="moving_zim_file">Ја преместувам ZIM-податотеката…</string>
+  <string name="copy_move_files_dialog_description">Кивикс бара ZIM-податотеката да биде во сопствена податочна папка. Дали сакате да ја прекопирате или преместите таму?</string>
+  <string name="copy_file_error_message">Грешка при копирање на ZIM-податотеката: %s.</string>
+  <string name="why_copy_move_files_to_app_directory">Зошто да се преместат/прекопираат податотеките во јавната папка на прилогот?</string>
+  <string name="copy_move_files_to_app_directory_description">Поради правилата на Google Play за Андроид 11 и поново, нашиот прилог повеќе нема непосреден пристап до податотеки складирани на други места на вашиот уред. За да ви овозможиме да ги гледате избраните податотеки ќе треба да ги преместиме или да ги прекопираме во специјална папка во директориумот на прилогот.</string>
+  <string name="choose_storage_to_copy_move_zim_file">Изберете склад за копирање/преместување на ZIM-податотеката</string>
+  <string name="move_file_error_message">Грешка при преместување на ZIM-податотеката: %s.</string>
   <string name="how_to_update_content">Како се подновува содржината?</string>
   <string name="update_content_description">За да ја подновите содржината (ZIM-поатотека) ќе треба да ја преземете последната полна верзија на истава содржина. Ова се прави во одделот за преземање.</string>
   <string name="all_files_permission_needed">Дозвола за сите податотеки</string>
@@ -326,6 +335,10 @@
   <string name="system_unable_to_grant_permission_message">Системот не може да ја даде дозволата!</string>
   <string name="allow">Дозволи</string>
   <string name="swipe_down_for_library">Повлечете надолу за Библиотеката</string>
+  <string name="reaching_remote_library">Ја добивам далечинската библиотека</string>
+  <string name="parsing_remote_library">Ја расчленувам далечинската библиотека</string>
+  <string name="starting_downloading_remote_library">Започнувам со преземање на мрежната библиотека</string>
+  <string name="downloading_library">Преземање на библиотека\n%s</string>
   <string name="no_notes">Нема белешки</string>
   <string name="notes_from_all_books">Погл. белешки од сите книги</string>
   <string name="search_notes">Пребарај белешки</string>
@@ -338,7 +351,7 @@
   <string name="download_tts_language_message">Стиснете на копчето „Преземи“. Со тоа автоматски ќе запчне преземањето на саканиот јазик.</string>
   <string name="external_link_copied_message">Надворешната врска е прекопирана во меѓускладот</string>
   <string name="read_aloud_service_channel_name">Канал за читање на глас</string>
-  <string name="read_aloud_channel_description">Управување за текст во говор</string>
+  <string name="read_aloud_channel_description">Управување со Прочитај на глас.</string>
   <string name="read_aloud_running">Во тек е читањето на глас</string>
   <string name="backward_history">Историја нанапред</string>
   <string name="forward_history">Историја наназад</string>
@@ -356,4 +369,7 @@
   <string name="toolbar_back_button_content_description">Оди на претходниот екран</string>
   <string name="save_or_open_unsupported_files_dialog_title">Да ја зачувам или отворам податотекава?</string>
   <string name="save_or_open_unsupported_files_dialog_message">Ако изберете Отвори, податотеката ќе ја отворите во надворешен читач.</string>
+  <string name="donation_dialog_title">Дарувајте денес</string>
+  <string name="donation_dialog_description">На %s му треба вашата помош.</string>
+  <string name="make_donation">Дарувајте</string>
 </resources>

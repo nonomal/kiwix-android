@@ -18,6 +18,10 @@
 
 package org.kiwix.kiwixmobile.custom.main
 
+import android.content.Intent
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -28,9 +32,12 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.google.android.material.navigation.NavigationView
 import org.kiwix.kiwixmobile.core.extensions.browserIntent
+import org.kiwix.kiwixmobile.core.main.ACTION_NEW_TAB
 import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.custom.BuildConfig
 import org.kiwix.kiwixmobile.custom.R
+import org.kiwix.kiwixmobile.core.R.string
+import org.kiwix.kiwixmobile.core.R.drawable
 import org.kiwix.kiwixmobile.custom.customActivityComponent
 import org.kiwix.kiwixmobile.custom.databinding.ActivityCustomMainBinding
 
@@ -66,8 +73,6 @@ class CustomMainActivity : CoreMainActivity() {
   override val historyFragmentResId: Int = R.id.historyFragment
   override val notesFragmentResId: Int = R.id.notesFragment
   override val helpFragmentResId: Int = R.id.helpFragment
-  override val zimHostFragmentResId: Int = R.id.zimHostFragment
-  override val navGraphId: Int = R.navigation.custom_nav_graph
   override val cachedComponent by lazy { customActivityComponent }
   override val topLevelDestinations =
     setOf(R.id.customReaderFragment)
@@ -93,17 +98,18 @@ class CustomMainActivity : CoreMainActivity() {
     }
   }
 
-  override fun setupDrawerToggle(toolbar: Toolbar) {
-    super.setupDrawerToggle(toolbar)
+  override fun setupDrawerToggle(toolbar: Toolbar, shouldEnableRightDrawer: Boolean) {
+    super.setupDrawerToggle(toolbar, shouldEnableRightDrawer)
     activityCustomMainBinding.drawerNavView.apply {
       /**
        * Hide the 'ZimHostFragment' option from the navigation menu
        * because we are now using fd (FileDescriptor)
        * to read the zim file from the asset folder. Currently,
        * 'KiwixServer' is unable to host zim files via fd.
-       * This feature is temporarily hidden for custom apps.
+       * This feature is temporarily removed for custom apps.
        * We will re-enable it for custom apps once the issue is resolved.
-       * For more info see https://github.com/kiwix/kiwix-android/pull/3516
+       * For more info see https://github.com/kiwix/kiwix-android/pull/3516,
+       * https://github.com/kiwix/kiwix-android/issues/4026
        */
       menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_host_books)?.isVisible = false
       /**
@@ -185,4 +191,21 @@ class CustomMainActivity : CoreMainActivity() {
   }
 
   override fun getIconResId() = R.mipmap.ic_launcher
+
+  override fun createApplicationShortcuts() {
+    val shortcutManager = getSystemService(ShortcutManager::class.java)
+    // Create a shortcut for opening the "New tab"
+    val newTabShortcut = ShortcutInfo.Builder(this, "new_tab")
+      .setShortLabel(getString(string.new_tab_shortcut_label))
+      .setLongLabel(getString(string.new_tab_shortcut_label))
+      .setIcon(Icon.createWithResource(this, drawable.ic_shortcut_new_tab))
+      .setDisabledMessage(getString(string.shortcut_disabled_message))
+      .setIntent(
+        Intent(this, CustomMainActivity::class.java).apply {
+          action = ACTION_NEW_TAB
+        }
+      )
+      .build()
+    shortcutManager.dynamicShortcuts = listOf(newTabShortcut)
+  }
 }

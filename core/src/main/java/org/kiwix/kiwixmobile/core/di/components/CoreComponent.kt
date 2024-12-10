@@ -22,7 +22,6 @@ import android.app.DownloadManager
 import android.app.NotificationManager
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.wifi.WifiManager
 import dagger.BindsInstance
 import dagger.Component
 import eu.mhutti1.utils.storage.StorageSelectDialog
@@ -53,7 +52,6 @@ import org.kiwix.kiwixmobile.core.di.modules.NetworkModule
 import org.kiwix.kiwixmobile.core.di.modules.SearchModule
 import org.kiwix.kiwixmobile.core.downloader.Downloader
 import org.kiwix.kiwixmobile.core.downloader.downloadManager.DownloadManagerBroadcastReceiver
-import org.kiwix.kiwixmobile.core.downloader.downloadManager.DownloadNotificationActionsBroadcastReceiver
 import org.kiwix.kiwixmobile.core.error.ErrorActivity
 import org.kiwix.kiwixmobile.core.main.KiwixWebView
 import org.kiwix.kiwixmobile.core.reader.ZimFileReader
@@ -104,7 +102,6 @@ interface CoreComponent {
   fun downloadRoomDao(): DownloadRoomDao
   fun newBookmarksDao(): NewBookmarksDao
   fun connectivityManager(): ConnectivityManager
-  fun wifiManager(): WifiManager
   fun objectBoxToLibkiwixMigrator(): ObjectBoxToLibkiwixMigrator
   fun libkiwixBookmarks(): LibkiwixBookmarks
   fun recentSearchRoomDao(): RecentSearchRoomDao
@@ -119,8 +116,6 @@ interface CoreComponent {
   fun mutex(): Mutex
 
   fun downloadManagerBroadCastReceiver(): DownloadManagerBroadcastReceiver
-  fun downloadNotificationActionBroadCastReceiver(): DownloadNotificationActionsBroadcastReceiver
-
   fun inject(application: CoreApp)
   fun inject(kiwixWebView: KiwixWebView)
   fun inject(storageSelectDialog: StorageSelectDialog)

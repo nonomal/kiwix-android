@@ -23,6 +23,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -99,8 +100,8 @@ object ActivityExtensions {
   val Activity.cachedComponent: CoreActivityComponent
     get() = coreMainActivity.cachedComponent
 
-  fun Activity.setupDrawerToggle(toolbar: Toolbar) =
-    coreMainActivity.setupDrawerToggle(toolbar)
+  fun Activity.setupDrawerToggle(toolbar: Toolbar, shouldEnableRightDrawer: Boolean = false) =
+    coreMainActivity.setupDrawerToggle(toolbar, shouldEnableRightDrawer)
 
   fun Activity.navigate(fragmentId: Int) {
     coreMainActivity.navigate(fragmentId)
@@ -185,4 +186,17 @@ object ActivityExtensions {
     } else {
       true
     }
+
+  fun Activity.isLandScapeMode(): Boolean =
+    resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+  @Suppress("MagicNumber")
+  fun Activity.isTablet(): Boolean {
+    val configuration = resources.configuration
+    val isLargeOrXLarge =
+      configuration.screenLayout and
+        Configuration.SCREENLAYOUT_SIZE_MASK >= Configuration.SCREENLAYOUT_SIZE_LARGE
+    val isWideEnough = configuration.smallestScreenWidthDp >= 600
+    return isLargeOrXLarge && isWideEnough
+  }
 }

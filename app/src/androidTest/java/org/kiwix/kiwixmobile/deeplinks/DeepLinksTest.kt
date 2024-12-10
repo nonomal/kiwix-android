@@ -20,22 +20,34 @@ package org.kiwix.kiwixmobile.deeplinks
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.accessibility.AccessibilityChecks
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesCheck
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesViews
+import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck
+import org.hamcrest.Matchers.allOf
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.jupiter.api.fail
 import org.kiwix.kiwixmobile.BaseActivityTest
 import org.kiwix.kiwixmobile.R
+import org.kiwix.kiwixmobile.core.R.string
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.page.history.navigationHistory
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils
+import org.kiwix.kiwixmobile.testutils.TestUtils.testFlakyView
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -47,7 +59,15 @@ class DeepLinksTest : BaseActivityTest() {
   private lateinit var sharedPreferenceUtil: SharedPreferenceUtil
 
   init {
-    AccessibilityChecks.enable().setRunChecksFromRootView(true)
+    AccessibilityChecks.enable().apply {
+      setRunChecksFromRootView(true)
+      setSuppressingResultMatcher(
+        allOf(
+          matchesCheck(TouchTargetSizeCheck::class.java),
+          matchesViews(withContentDescription("More options"))
+        )
+      )
+    }
   }
 
   @Before
@@ -64,8 +84,9 @@ class DeepLinksTest : BaseActivityTest() {
         putPrefWifiOnly(false)
         setIsPlayStoreBuildType(true)
         prefIsTest = true
-        playStoreRestrictionPermissionDialog = false
         putPrefLanguage("en")
+        shouldShowStorageSelectionDialog = false
+        lastDonationPopupShownInMilliSeconds = System.currentTimeMillis()
       }
     }
   }
@@ -75,6 +96,7 @@ class DeepLinksTest : BaseActivityTest() {
     loadZimFileInApplicationAndReturnSchemeTypeUri("file")?.let {
       // Launch the activity to test the deep link
       ActivityScenario.launch<KiwixMainActivity>(createDeepLinkIntent(it)).onActivity {}
+      clickOnCopy()
       navigationHistory {
         checkZimFileLoadedSuccessful(R.id.readerFragment)
         assertZimFileLoaded() // check if the zim file successfully loaded
@@ -86,11 +108,20 @@ class DeepLinksTest : BaseActivityTest() {
     }
   }
 
+  private fun clickOnCopy() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      testFlakyView({
+        onView(withText(string.action_copy)).perform(click())
+      })
+    }
+  }
+
   @Test
   fun contentTypeDeepLinkTest() {
     loadZimFileInApplicationAndReturnSchemeTypeUri("content")?.let {
       // Launch the activity to test the deep link
       ActivityScenario.launch<KiwixMainActivity>(createDeepLinkIntent(it)).onActivity {}
+      clickOnCopy()
       navigationHistory {
         checkZimFileLoadedSuccessful(R.id.readerFragment)
         assertZimFileLoaded() // check if the zim file successfully loaded
@@ -137,5 +168,10 @@ class DeepLinksTest : BaseActivityTest() {
       setPackage(context.packageName)
     }
     return intent
+  }
+
+  @After
+  fun finish() {
+    TestUtils.deleteTemporaryFilesOfTestCases(context)
   }
 }

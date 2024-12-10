@@ -40,8 +40,8 @@
   <string name="server_started_message">Enankit ar chomlec’h IP-mañ e-barzh ho merdeer evit kaout ar servijer %s</string>
   <string name="share_host_address">Rannañ an URL war-bouez arloadoù all</string>
   <string name="error_file_not_found">Fazi : N’eus ket bet gallet kavout ar restr ZIM diuzet.</string>
-  <string name="unable_to_read_zim_file">N’haller ket lenn ar restr ZIM-mañ!</string>
-  <string name="zim_not_opened">Dibosupl digeriñ ar restr zim</string>
+  <string name="unable_to_read_zim_file" fuzzy="true">N’haller ket lenn ar restr ZIM-mañ!</string>
+  <string name="zim_not_opened" fuzzy="true">Dibosupl digeriñ ar restr zim</string>
   <string name="error_file_invalid">Fazi : Ar restr diuzet n’eo ket ur restr ZIM reizh.</string>
   <string name="error_article_url_not_found">Fazi : N’eus ket bet gallet kargañ ar pennad “%1$s”</string>
   <string name="pref_display_title">Diskwel</string>
@@ -96,7 +96,7 @@
   <string name="local_zims">Trobarzhell</string>
   <string name="remote_zims">Enlinenn</string>
   <string name="library">Levraoueg</string>
-  <string name="delete_zim_body">The following zim file(s) will be deleted:\n\n%s</string>
+  <string name="delete_zim_body" fuzzy="true">The following zim file(s) will be deleted:\n\n%s</string>
   <string name="delete_zims_toast">Restr dilamet</string>
   <string name="no_files_here">N’eus restr ebet amañ</string>
   <string name="download_no_space">N’eus ket plas a-walc’h evit pellgargañ.</string>
@@ -114,7 +114,7 @@
   <string name="help_7">Gallout a reer kaout anezho e stumm restroù ZIM. Kalz anezho zo :</string>
   <string name="help_8">• Wikipedia a c’haller kaout a-ziforc’h\nevit pep yezh.</string>
   <string name="help_9">• Endalc’hadoù all evel Wikileaks pe Wikisource a a c’haller kaout ivez.</string>
-  <string name="help_10">Gallout a reot pe pellgargañ ho restroù ZIM dibabet en arload, pe dibab, gant aked, ar re ho peus c’hoant da bellgargañ diwar hoc’h urhiataer burev a-raok treuzkas ar restroù ZIM war ho kartenn SD.</string>
+  <string name="help_10" fuzzy="true">Gallout a reot pe pellgargañ ho restroù ZIM dibabet en arload, pe dibab, gant aked, ar re ho peus c’hoant da bellgargañ diwar hoc’h urhiataer burev a-raok treuzkas ar restroù ZIM war ho kartenn SD.</string>
   <string name="help_11">Ar restroù ZIM pellgarget en arload zo er c’havlec’h skokañ diavaez en ur c’havlec’h anvet Kiwix.</string>
   <string name="pref_storage">Stokañ</string>
   <string name="pref_current_folder">Renkell red</string>
@@ -122,16 +122,14 @@
   <string name="tts_pause">ehanañ</string>
   <string name="tts_resume">adkemer</string>
   <string name="stop">paouez</string>
-  <string name="configure_storage_option">Pellgargañ al levr er stokañ diabarzh?</string>
   <string name="internal_storage">Diabarzh</string>
   <string name="external_storage">Diavaez</string>
-  <string name="configure">Kefluniañ</string>
   <string name="yes">Ya</string>
   <string name="no">Ket</string>
   <string name="confirm_stop_download_title">Paouez ar pellgargadur ?</string>
   <string name="confirm_stop_download_msg">Ha sur oc’h e fell deoc’h paouez ar pellgargadur-mañ ?</string>
   <string name="download_change_storage">Diuzer trobarzhell stokañ</string>
-  <string name="tts_not_enabled">N’eo ket gweredekaet ar sintezenn e komzoù gant ar restr ZIM</string>
+  <string name="tts_not_enabled" fuzzy="true">N’eo ket gweredekaet ar sintezenn e komzoù gant ar restr ZIM</string>
   <string name="next">War-lerc’h</string>
   <string name="previous">Kent</string>
   <string name="wifi_only_title">Aotren pellgargañ an endalc’h dre ar rouedad hezoug ?</string>
@@ -155,7 +153,7 @@
   <string name="crash_title">Ma… Un tammig diaes omp lakaet</string>
   <string name="crash_description">Gallout a rafec’h sikour ac’hanomp da renkañ ar gudenn-mañ en ur gas an titouroù-mañ ?</string>
   <string name="crash_checkbox_language">Hoc’h arventennoù yezh</string>
-  <string name="crash_checkbox_zimfiles">Ur roll eus ho restroù ZIM</string>
+  <string name="crash_checkbox_zimfiles" fuzzy="true">Ur roll eus ho restroù ZIM</string>
   <string name="crash_checkbox_device">Munudoù ar stignad</string>
   <string name="crash_button_confirm">KAS AR MUNUDOÙ</string>
   <string name="shortcut_disabled_message">Berradenn ebet da gaout</string>
@@ -174,7 +172,6 @@
   <string name="table_of_contents">Taolenn</string>
   <string name="select_languages">Dibab ar yezhoù</string>
   <string name="save_languages">Enrollañ ar yezhoù</string>
-  <string name="send_feedback">Kas un ali</string>
   <string name="expand">Dispakañ</string>
   <string name="history">Istor</string>
   <string name="history_from_current_book">Gwelet istor an holl levrioù</string>
@@ -190,7 +187,7 @@
   <string name="complete">Echuiñ</string>
   <string name="paused_state">Ehanet</string>
   <string name="failed_state">C’hwitet : %s</string>
-  <string name="custom_download_error_message_for_authentication_failed">N’haller ket pellgargañ ar restr ZIM. Klaskit adstaliañ an arload diouzh ar Play store mar plij.</string>
+  <string name="custom_download_error_message_for_authentication_failed" fuzzy="true">N’haller ket pellgargañ ar restr ZIM. Klaskit adstaliañ an arload diouzh ar Play store mar plij.</string>
   <string name="save">Enrollañ</string>
   <string name="note">Notenn</string>
   <string name="wiki_article_title">Titl ar pennad Wiki</string>
@@ -245,8 +242,6 @@
   <string name="open_library">Digeriñ al levraoueg</string>
   <string name="open_drawer">Digeriñ an diretenn</string>
   <string name="close_drawer">Serriñ an diretenn</string>
-  <string name="zim_files_not_showing">N’eo ket diskouezet ar restroù ZIM?</string>
-  <string name="understood">Komprenet am eus</string>
   <string name="allowed">Aotreet</string>
   <string name="not_allowed">Berzet</string>
   <string name="allow">Aotren</string>

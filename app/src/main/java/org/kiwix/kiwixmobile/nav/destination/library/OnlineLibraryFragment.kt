@@ -21,7 +21,6 @@ package org.kiwix.kiwixmobile.nav.destination.library
 import android.Manifest
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.net.ConnectivityManager
@@ -35,6 +34,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
@@ -42,13 +42,16 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
+import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import eu.mhutti1.utils.storage.STORAGE_SELECT_STORAGE_TITLE_TEXTVIEW_SIZE
 import eu.mhutti1.utils.storage.StorageDevice
+import eu.mhutti1.utils.storage.StorageDeviceUtils
 import eu.mhutti1.utils.storage.StorageSelectDialog
 import org.kiwix.kiwixmobile.R
 import org.kiwix.kiwixmobile.cachedComponent
@@ -65,6 +68,7 @@ import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.requestNotificat
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.viewModel
 import org.kiwix.kiwixmobile.core.extensions.closeKeyboard
 import org.kiwix.kiwixmobile.core.extensions.coreMainActivity
+import org.kiwix.kiwixmobile.core.extensions.isKeyboardVisible
 import org.kiwix.kiwixmobile.core.extensions.setBottomMarginToFragmentContainerView
 import org.kiwix.kiwixmobile.core.extensions.setUpSearchView
 import org.kiwix.kiwixmobile.core.extensions.snack
@@ -86,7 +90,7 @@ import org.kiwix.kiwixmobile.core.utils.dialog.DialogShower
 import org.kiwix.kiwixmobile.core.utils.dialog.KiwixDialog
 import org.kiwix.kiwixmobile.core.utils.dialog.KiwixDialog.YesNoDialog.WifiOnly
 import org.kiwix.kiwixmobile.databinding.FragmentDestinationDownloadBinding
-import org.kiwix.kiwixmobile.zimManager.NetworkState
+import org.kiwix.kiwixmobile.core.zim_manager.NetworkState
 import org.kiwix.kiwixmobile.zimManager.ZimManageViewModel
 import org.kiwix.kiwixmobile.zimManager.libraryView.AvailableSpaceCalculator
 import org.kiwix.kiwixmobile.zimManager.libraryView.adapter.LibraryAdapter
@@ -105,11 +109,17 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
   @Inject lateinit var availableSpaceCalculator: AvailableSpaceCalculator
   @Inject lateinit var alertDialogShower: AlertDialogShower
   private var fragmentDestinationDownloadBinding: FragmentDestinationDownloadBinding? = null
-
+  private val lock = Any()
   private var downloadBookItem: LibraryListItem.BookItem? = null
   private val zimManageViewModel by lazy {
     requireActivity().viewModel<ZimManageViewModel>(viewModelFactory)
   }
+  private val storageDeviceList by lazy {
+    StorageDeviceUtils.getWritableStorage(requireActivity())
+  }
+
+  @VisibleForTesting
+  fun getOnlineLibraryList() = libraryAdapter.items
 
   private val libraryAdapter: LibraryAdapter by lazy {
     LibraryAdapter(
@@ -194,8 +204,10 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     ) {
       if (it && !NetworkUtils.isWiFi(requireContext())) {
         showInternetAccessViaMobileNetworkDialog()
+        hideProgressBarOfFetchingOnlineLibrary()
       }
     }
+    zimManageViewModel.downloadProgress.observe(viewLifecycleOwner, ::onLibraryStatusChanged)
     setupMenu()
 
     // hides keyboard when scrolled
@@ -248,13 +260,11 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     dialogShower.show(
       WifiOnly,
       {
-        onRefreshStateChange(true)
         showRecyclerviewAndHideSwipeDownForLibraryErrorText()
         sharedPreferenceUtil.putPrefWifiOnly(false)
         zimManageViewModel.shouldShowWifiOnlyDialog.value = false
       },
       {
-        onRefreshStateChange(false)
         context.toast(
           resources.getString(string.denied_internet_permission_message),
           Toast.LENGTH_SHORT
@@ -269,6 +279,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
       libraryErrorText.visibility = View.GONE
       libraryList.visibility = View.VISIBLE
     }
+    showProgressBarOfFetchingOnlineLibrary()
   }
 
   private fun hideRecyclerviewAndShowSwipeDownForLibraryErrorText() {
@@ -278,6 +289,34 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
       )
       libraryErrorText.visibility = View.VISIBLE
       libraryList.visibility = View.GONE
+    }
+    hideProgressBarOfFetchingOnlineLibrary()
+  }
+
+  private fun showProgressBarOfFetchingOnlineLibrary() {
+    onRefreshStateChange(false)
+    fragmentDestinationDownloadBinding?.apply {
+      libraryErrorText.visibility = View.GONE
+      librarySwipeRefresh.isEnabled = false
+      onlineLibraryProgressLayout.visibility = View.VISIBLE
+      onlineLibraryProgressStatusText.setText(string.reaching_remote_library)
+    }
+  }
+
+  private fun hideProgressBarOfFetchingOnlineLibrary() {
+    onRefreshStateChange(false)
+    fragmentDestinationDownloadBinding?.apply {
+      librarySwipeRefresh.isEnabled = true
+      onlineLibraryProgressLayout.visibility = View.GONE
+      onlineLibraryProgressStatusText.setText(string.reaching_remote_library)
+    }
+  }
+
+  private fun onLibraryStatusChanged(libraryStatus: String) {
+    synchronized(lock) {
+      fragmentDestinationDownloadBinding?.apply {
+        onlineLibraryProgressStatusText.text = libraryStatus
+      }
     }
   }
 
@@ -289,23 +328,35 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
   }
 
   override fun onBackPressed(activity: AppCompatActivity): FragmentActivityExtensions.Super {
-    getActivity()?.finish()
-    return FragmentActivityExtensions.Super.ShouldNotCall
+    if (isKeyboardVisible()) {
+      closeKeyboard()
+      return FragmentActivityExtensions.Super.ShouldNotCall
+    }
+    return FragmentActivityExtensions.Super.ShouldCall
   }
 
   private fun onRefreshStateChange(isRefreshing: Boolean?) {
-    fragmentDestinationDownloadBinding?.librarySwipeRefresh?.isRefreshing = isRefreshing == true
+    var refreshing = isRefreshing == true
+    // do not show the refreshing when the online library is downloading
+    if (fragmentDestinationDownloadBinding?.onlineLibraryProgressLayout?.isVisible == true ||
+      fragmentDestinationDownloadBinding?.libraryErrorText?.isVisible == true
+    ) {
+      refreshing = false
+    }
+    fragmentDestinationDownloadBinding?.librarySwipeRefresh?.isRefreshing = refreshing
   }
 
   private fun onNetworkStateChange(networkState: NetworkState?) {
     when (networkState) {
       NetworkState.CONNECTED -> {
         if (NetworkUtils.isWiFi(requireContext())) {
-          onRefreshStateChange(true)
           refreshFragment()
         } else if (noWifiWithWifiOnlyPreferenceSet) {
-          onRefreshStateChange(false)
           hideRecyclerviewAndShowSwipeDownForLibraryErrorText()
+        } else if (!noWifiWithWifiOnlyPreferenceSet) {
+          if (libraryAdapter.items.isEmpty()) {
+            showProgressBarOfFetchingOnlineLibrary()
+          }
         }
       }
 
@@ -326,7 +377,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
       )
       fragmentDestinationDownloadBinding?.libraryErrorText?.visibility = View.VISIBLE
     }
-    fragmentDestinationDownloadBinding?.librarySwipeRefresh?.isRefreshing = false
+    hideProgressBarOfFetchingOnlineLibrary()
   }
 
   private fun noInternetSnackbar() {
@@ -346,6 +397,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     if (it != null) {
       libraryAdapter.items = it
     }
+    hideProgressBarOfFetchingOnlineLibrary()
     if (it?.isEmpty() == true) {
       fragmentDestinationDownloadBinding?.libraryErrorText?.setText(
         if (isNotConnected) string.no_network_connection
@@ -373,10 +425,10 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     }
   }
 
-  @SuppressLint("InflateParams")
   private fun storeDeviceInPreferences(
     storageDevice: StorageDevice
   ) {
+    sharedPreferenceUtil.showStorageOption = false
     sharedPreferenceUtil.putPrefStorage(
       sharedPreferenceUtil.getPublicDirectoryPath(storageDevice.name)
     )
@@ -486,7 +538,15 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
           }
 
           else -> if (sharedPreferenceUtil.showStorageOption) {
-            showStorageConfigureDialog()
+            // Show the storage selection dialog for configuration if there is an SD card available.
+            if (storageDeviceList.size > 1) {
+              showStorageSelectDialog()
+            } else {
+              // If only internal storage is available, proceed with the ZIM file download directly.
+              // Displaying a configuration dialog is unnecessary in this case.
+              sharedPreferenceUtil.showStorageOption = false
+              onBookItemClick(item)
+            }
           } else if (!requireActivity().isManageExternalStoragePermissionGranted(
               sharedPreferenceUtil
             )
@@ -519,22 +579,11 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
   private fun showStorageSelectDialog() = StorageSelectDialog()
     .apply {
       onSelectAction = ::storeDeviceInPreferences
+      titleSize = STORAGE_SELECT_STORAGE_TITLE_TEXTVIEW_SIZE
+      setStorageDeviceList(storageDeviceList)
+      setShouldShowCheckboxSelected(false)
     }
-    .show(parentFragmentManager, getString(string.pref_storage))
-
-  private fun showStorageConfigureDialog() {
-    alertDialogShower.show(
-      KiwixDialog.StorageConfigure,
-      {
-        showStorageSelectDialog()
-        sharedPreferenceUtil.showStorageOption = false
-      },
-      {
-        sharedPreferenceUtil.showStorageOption = false
-        clickOnBookItem()
-      }
-    )
-  }
+    .show(parentFragmentManager, getString(string.choose_storage_to_download_book))
 
   private fun clickOnBookItem() {
     if (!requireActivity().isManageExternalStoragePermissionGranted(sharedPreferenceUtil)) {

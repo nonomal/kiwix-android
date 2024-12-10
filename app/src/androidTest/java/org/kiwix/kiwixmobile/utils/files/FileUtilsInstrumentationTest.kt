@@ -38,6 +38,7 @@ import org.kiwix.kiwixmobile.core.utils.files.FileUtils.documentProviderContentQ
 import org.kiwix.kiwixmobile.core.utils.files.FileUtils.getAllZimParts
 import org.kiwix.kiwixmobile.core.utils.files.FileUtils.hasPart
 import org.kiwix.kiwixmobile.testutils.RetryRule
+import org.kiwix.kiwixmobile.testutils.TestUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -224,6 +225,7 @@ class FileUtilsInstrumentationTest {
       }
       it.delete()
     }
+    context?.let(TestUtils::deleteTemporaryFilesOfTestCases)
   }
 
   @Test
@@ -403,6 +405,15 @@ class FileUtilsInstrumentationTest {
         null,
         Uri.parse(
           "${downloadUriPrefix}0"
+        )
+      ),
+      DummyUrlData(
+        null,
+        null,
+        null,
+        null,
+        Uri.parse(
+          "${downloadDocumentUriPrefix}msf%3A1000000057"
         )
       )
     )

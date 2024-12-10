@@ -28,12 +28,12 @@ import androidx.test.espresso.matcher.ViewMatchers.withText
 import applyWithViewHierarchyPrinting
 import com.adevinta.android.barista.interaction.BaristaSleepInteractions
 import com.adevinta.android.barista.interaction.BaristaSwipeRefreshInteractions.refresh
-import junit.framework.AssertionFailedError
 import org.kiwix.kiwixmobile.BaseRobot
 import org.kiwix.kiwixmobile.Findable.StringId.TextId
 import org.kiwix.kiwixmobile.Findable.Text
 import org.kiwix.kiwixmobile.Findable.ViewId
 import org.kiwix.kiwixmobile.R
+import org.kiwix.kiwixmobile.core.R.id
 import org.kiwix.kiwixmobile.core.R.string
 import org.kiwix.kiwixmobile.core.utils.files.Log
 import org.kiwix.kiwixmobile.testutils.TestUtils
@@ -53,17 +53,8 @@ class InitialDownloadRobot : BaseRobot() {
     isVisible(ViewId(R.id.libraryList))
   }
 
-  fun refreshOnlineList() {
+  private fun refreshOnlineList() {
     refresh(R.id.librarySwipeRefresh)
-  }
-
-  fun refreshLocalLibraryData() {
-    try {
-      refresh(R.id.zim_swiperefresh)
-      pauseForBetterTestPerformance()
-    } catch (e: RuntimeException) {
-      Log.w("InitialDownloadTest", "Failed to refresh ZIM list: " + e.localizedMessage)
-    }
   }
 
   fun waitForDataToLoad(retryCountForDataToLoad: Int = 10) {
@@ -71,11 +62,28 @@ class InitialDownloadRobot : BaseRobot() {
       isVisible(TextId(string.your_languages))
     } catch (e: RuntimeException) {
       if (retryCountForDataToLoad > 0) {
+        // refresh the data if there is "Swipe Down for Library" visible on the screen.
+        refreshOnlineListIfSwipeDownForLibraryTextVisible()
         waitForDataToLoad(retryCountForDataToLoad - 1)
         return
       }
       // throw the exception when there is no more retry left.
       throw RuntimeException("Couldn't load the online library list.\n Original exception = $e")
+    }
+  }
+
+  private fun refreshOnlineListIfSwipeDownForLibraryTextVisible() {
+    try {
+      onView(withText(string.swipe_down_for_library)).check(matches(isDisplayed()))
+      refreshOnlineList()
+    } catch (e: RuntimeException) {
+      try {
+        // do nothing as currently downloading the online library.
+        onView(withId(R.id.onlineLibraryProgressLayout)).check(matches(isDisplayed()))
+      } catch (e: RuntimeException) {
+        // if not visible try to get the online library.
+        refreshOnlineList()
+      }
     }
   }
 
@@ -91,7 +99,7 @@ class InitialDownloadRobot : BaseRobot() {
   }
 
   fun assertStorageConfigureDialogDisplayed() {
-    testFlakyView({ isVisible(Text("Download book to internal storage?")) })
+    testFlakyView({ onView(withText(string.choose_storage_to_download_book)) })
   }
 
   fun assertStopDownloadDialogDisplayed() {
@@ -100,6 +108,17 @@ class InitialDownloadRobot : BaseRobot() {
 
   fun clickOnYesToConfirm() {
     testFlakyView({ onView(withText("YES")).perform(click()) })
+  }
+
+  fun clickOnInternalStorage() {
+    pauseForBetterTestPerformance()
+    testFlakyView({
+      onView(
+        RecyclerViewMatcher(id.device_list).atPosition(
+          0
+        )
+      ).perform(click())
+    })
   }
 
   fun assertDownloadStart() {
@@ -111,12 +130,7 @@ class InitialDownloadRobot : BaseRobot() {
   }
 
   fun assertDownloadStop() {
-    try {
-      onView(withId(R.id.stop)).check(doesNotExist())
-    } catch (e: AssertionFailedError) {
-      BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
-      assertDownloadStop()
-    }
+    testFlakyView({ onView(withId(R.id.stop)).check(doesNotExist()) }, 10)
   }
 
   private fun pauseForBetterTestPerformance() {
@@ -132,7 +146,7 @@ class InitialDownloadRobot : BaseRobot() {
       clickOnYesToConfirm()
       pauseForBetterTestPerformance()
     } catch (e: Exception) {
-      Log.i(
+      Log.e(
         "INITIAL_DOWNLOAD_TEST",
         "Failed to stop downloading. Probably because it is not downloading the zim file"
       )

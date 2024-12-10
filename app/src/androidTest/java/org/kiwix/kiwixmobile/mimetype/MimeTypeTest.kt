@@ -25,6 +25,8 @@ import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
+import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -34,6 +36,7 @@ import org.kiwix.kiwixmobile.core.reader.ZimFileReader
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
+import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
 import org.kiwix.libzim.SuggestionSearcher
@@ -54,8 +57,11 @@ class MimeTypeTest : BaseActivityTest() {
     PreferenceManager.getDefaultSharedPreferences(context).edit {
       putBoolean(SharedPreferenceUtil.PREF_SHOW_INTRO, false)
       putBoolean(SharedPreferenceUtil.PREF_WIFI_ONLY, false)
-      putBoolean(SharedPreferenceUtil.PREF_PLAY_STORE_RESTRICTION, false)
       putString(SharedPreferenceUtil.PREF_LANG, "en")
+      putLong(
+        SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
+        System.currentTimeMillis()
+      )
     }
     activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
@@ -63,7 +69,7 @@ class MimeTypeTest : BaseActivityTest() {
   }
 
   @Test
-  fun testMimeType() {
+  fun testMimeType() = runBlocking {
     val loadFileStream = MimeTypeTest::class.java.classLoader.getResourceAsStream("testzim.zim")
     val zimFile = File(
       ContextCompat.getExternalFilesDirs(context, null)[0],
@@ -89,12 +95,12 @@ class MimeTypeTest : BaseActivityTest() {
       DarkModeConfig(SharedPreferenceUtil(context), context),
       SuggestionSearcher(archive)
     )
-    zimFileReader.getRandomArticleUrl()?.let {
-      val mimeType = zimFileReader.getMimeTypeFromUrl(it)
+    zimFileReader.getRandomArticleUrl()?.let { randomArticle ->
+      val mimeType = zimFileReader.getMimeTypeFromUrl(randomArticle)
       if (mimeType?.contains("^([^ ]+).*$") == true || mimeType?.contains(";") == true) {
         Assert.fail(
           "Unable to get mime type from zim file. File = " +
-            " $zimFile and url of article = $it"
+            " $zimFile and url of article = $randomArticle"
         )
       }
     } ?: kotlin.run {
@@ -113,5 +119,10 @@ class MimeTypeTest : BaseActivityTest() {
     Assert.assertEquals(null, zimFileReader.getMimeTypeFromUrl("https://kiwix.app/A/test.html"))
     // dispose the ZimFileReader
     zimFileReader.dispose()
+  }
+
+  @After
+  fun finish() {
+    TestUtils.deleteTemporaryFilesOfTestCases(context)
   }
 }

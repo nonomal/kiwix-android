@@ -109,6 +109,15 @@ sealed class KiwixDialog(
     cancelable = false
   )
 
+  data object CopyMoveFileToPublicDirectoryDialog : KiwixDialog(
+    null,
+    R.string.copy_move_files_dialog_description,
+    R.string.action_copy,
+    R.string.move,
+    neutralMessage = R.string.cancel,
+    cancelable = false
+  )
+
   object SaveOrOpenUnsupportedFiles : KiwixDialog(
     R.string.save_or_open_unsupported_files_dialog_title,
     R.string.save_or_open_unsupported_files_dialog_message,
@@ -172,20 +181,6 @@ sealed class KiwixDialog(
     neutralMessage = R.string.do_not_ask_anymore
   )
 
-  data class PlayStoreRestrictionPopup(override val args: List<Any>) :
-    KiwixDialog(
-      null,
-      R.string.zim_files_not_showing_description,
-      R.string.understood,
-      R.string.download,
-      cancelable = false
-    ),
-    HasBodyFormatArgs {
-    constructor(websiteUrl: String) : this(
-      listOf(websiteUrl)
-    )
-  }
-
   data class ShowRate(override val args: List<Any>, val customIcon: Int?) :
     KiwixDialog(
       R.string.rate_dialog_title,
@@ -244,6 +239,15 @@ sealed class KiwixDialog(
     getView = customGetView
   )
 
+  data class PreparingCopyingFilesDialog(val customGetView: (() -> View)?) : KiwixDialog(
+    R.string.preparing_file_for_copy,
+    null,
+    R.string.empty_string,
+    null,
+    cancelable = false,
+    getView = customGetView
+  )
+
   object NotesDiscardConfirmation : KiwixDialog(
     null,
     R.string.confirmation_alert_dialog_message,
@@ -279,14 +283,6 @@ sealed class KiwixDialog(
       message = R.string.export_all_bookmarks_dialog_message,
     )
   }
-
-  object StorageConfigure : KiwixDialog(
-    R.string.configure_storage_option,
-    null,
-    positiveMessage = R.string.configure,
-    negativeMessage = R.string.yes,
-    icon = R.drawable.ic_baseline_storage_24
-  )
 
   object ImportBookmarks : KiwixDialog(
     R.string.import_bookmarks_dialog_title,

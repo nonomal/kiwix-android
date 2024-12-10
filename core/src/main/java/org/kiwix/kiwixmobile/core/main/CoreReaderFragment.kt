@@ -40,12 +40,15 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.AttributeSet
 import android.view.ActionMode
+import android.view.Gravity.BOTTOM
+import android.view.Gravity.CENTER_HORIZONTAL
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
+import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
@@ -72,10 +75,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
+import androidx.core.view.isVisible
 import androidx.core.widget.ContentLoadingProgressBar
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -89,6 +94,11 @@ import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.processors.BehaviorProcessor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
 import org.kiwix.kiwixmobile.core.BuildConfig
@@ -101,6 +111,7 @@ import org.kiwix.kiwixmobile.core.dao.LibkiwixBookmarks
 import org.kiwix.kiwixmobile.core.databinding.FragmentReaderBinding
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.consumeObservable
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.hasNotificationPermission
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.isLandScapeMode
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.observeNavigationResult
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.requestNotificationPermission
 import org.kiwix.kiwixmobile.core.extensions.ViewGroupExtensions.findFirstTextView
@@ -114,6 +125,7 @@ import org.kiwix.kiwixmobile.core.main.DocumentParser.SectionsListener
 import org.kiwix.kiwixmobile.core.main.KiwixTextToSpeech.OnInitSucceedListener
 import org.kiwix.kiwixmobile.core.main.KiwixTextToSpeech.OnSpeakingListener
 import org.kiwix.kiwixmobile.core.main.MainMenu.MenuClickListener
+import org.kiwix.kiwixmobile.core.main.RestoreOrigin.FromExternalLaunch
 import org.kiwix.kiwixmobile.core.main.TableDrawerAdapter.DocumentSection
 import org.kiwix.kiwixmobile.core.main.TableDrawerAdapter.TableClickListener
 import org.kiwix.kiwixmobile.core.navigateToAppSettings
@@ -133,6 +145,9 @@ import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
 import org.kiwix.kiwixmobile.core.search.viewmodel.effects.SearchItemToOpen
 import org.kiwix.kiwixmobile.core.utils.AnimationUtils.rotate
 import org.kiwix.kiwixmobile.core.utils.DimenUtils.getToolbarHeight
+import org.kiwix.kiwixmobile.core.utils.DimenUtils.getWindowWidth
+import org.kiwix.kiwixmobile.core.utils.DonationDialogHandler
+import org.kiwix.kiwixmobile.core.utils.DonationDialogHandler.ShowDonationDialogCallback
 import org.kiwix.kiwixmobile.core.utils.ExternalLinkOpener
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.getCurrentLocale
@@ -165,6 +180,8 @@ import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.max
 
+const val SEARCH_ITEM_TITLE_KEY = "searchItemTitle"
+
 @Suppress("LargeClass")
 abstract class CoreReaderFragment :
   BaseFragment(),
@@ -173,7 +190,8 @@ abstract class CoreReaderFragment :
   FragmentActivityExtensions,
   WebViewProvider,
   ReadAloudCallbacks,
-  NavigationHistoryClickListener {
+  NavigationHistoryClickListener,
+  ShowDonationDialogCallback {
   protected val webViewList: MutableList<KiwixWebView> = ArrayList()
   private val webUrlsProcessor = BehaviorProcessor.create<String>()
   private var fragmentReaderBinding: FragmentReaderBinding? = null
@@ -226,6 +244,10 @@ abstract class CoreReaderFragment :
   @JvmField
   @Inject
   var alertDialogShower: DialogShower? = null
+
+  @JvmField
+  @Inject
+  var donationDialogHandler: DonationDialogHandler? = null
 
   @JvmField
   @Inject
@@ -297,6 +319,7 @@ abstract class CoreReaderFragment :
   private var tableDrawerAdapter: TableDrawerAdapter? = null
   private var tableDrawerRight: RecyclerView? = null
   private var tabCallback: ItemTouchHelper.Callback? = null
+  private var donationLayout: FrameLayout? = null
   private var bookmarkingDisposable: Disposable? = null
   private var isBookmarked = false
   private lateinit var serviceConnection: ServiceConnection
@@ -304,6 +327,15 @@ abstract class CoreReaderFragment :
   private var navigationHistoryList: MutableList<NavigationHistoryListItem> = ArrayList()
   private var isReadSelection = false
   private var isReadAloudServiceRunning = false
+  private var readerLifeCycleScope: CoroutineScope? = null
+
+  val coreReaderLifeCycleScope: CoroutineScope?
+    get() {
+      if (readerLifeCycleScope == null) {
+        readerLifeCycleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+      }
+      return readerLifeCycleScope
+    }
 
   private var storagePermissionForNotesLauncher: ActivityResultLauncher<String>? =
     registerForActivityResult(
@@ -389,6 +421,7 @@ abstract class CoreReaderFragment :
   ) {
     super.onViewCreated(view, savedInstanceState)
     setupMenu()
+    donationDialogHandler?.setDonationDialogCallBack(this)
     val activity = requireActivity() as AppCompatActivity?
     activity?.let {
       WebView(it).destroy() // Workaround for buggy webViews see #710
@@ -511,6 +544,7 @@ abstract class CoreReaderFragment :
         tabRecyclerView = findViewById(R.id.tab_switcher_recycler_view)
         snackBarRoot = findViewById(R.id.snackbar_root)
         bottomToolbarToc = findViewById(R.id.bottom_toolbar_toc)
+        donationLayout = findViewById(R.id.donation_layout)
       }
     }
   }
@@ -859,7 +893,9 @@ abstract class CoreReaderFragment :
    * to verify proper functionality.
    */
   open fun setUpDrawerToggle(toolbar: Toolbar) {
-    toolbar.let((requireActivity() as CoreMainActivity)::setupDrawerToggle)
+    toolbar.let {
+      (requireActivity() as CoreMainActivity).setupDrawerToggle(it, true)
+    }
   }
 
   /**
@@ -1177,6 +1213,12 @@ abstract class CoreReaderFragment :
 
   override fun onDestroyView() {
     super.onDestroyView()
+    try {
+      readerLifeCycleScope?.cancel()
+      readerLifeCycleScope = null
+    } catch (ignore: Exception) {
+      ignore.printStackTrace()
+    }
     if (sharedPreferenceUtil?.showIntro() == true) {
       val activity = requireActivity() as AppCompatActivity?
       activity?.setSupportActionBar(null)
@@ -1187,14 +1229,13 @@ abstract class CoreReaderFragment :
     tabCallback = null
     hideBackToTopTimer?.cancel()
     hideBackToTopTimer = null
-    webViewList.clear()
+    stopOngoingLoadingAndClearWebViewList()
     actionBar = null
     mainMenu = null
     tabRecyclerView?.adapter = null
     tableDrawerRight?.adapter = null
     tableDrawerAdapter = null
     tabsAdapter = null
-    webViewList.clear()
     tempWebViewListForUndo.clear()
     // create a base Activity class that class this.
     deleteCachedFiles(requireActivity())
@@ -1213,6 +1254,8 @@ abstract class CoreReaderFragment :
     unRegisterReadAloudService()
     storagePermissionForNotesLauncher?.unregister()
     storagePermissionForNotesLauncher = null
+    donationDialogHandler?.setDonationDialogCallBack(null)
+    donationDialogHandler = null
   }
 
   private fun unBindViewsAndBinding() {
@@ -1243,6 +1286,8 @@ abstract class CoreReaderFragment :
     closeAllTabsButton = null
     tableDrawerRightContainer = null
     fragmentReaderBinding = null
+    donationLayout?.removeAllViews()
+    donationLayout = null
   }
 
   private fun updateTableOfContents() {
@@ -1357,12 +1402,28 @@ abstract class CoreReaderFragment :
     bottomToolbar?.visibility = View.GONE
     actionBar?.title = getString(R.string.reader)
     contentFrame?.visibility = View.GONE
+    hideProgressBar()
     mainMenu?.hideBookSpecificMenuItems()
     closeZimBook()
   }
 
-  private fun closeZimBook() {
+  fun closeZimBook() {
     zimReaderContainer?.setZimReaderSource(null)
+  }
+
+  protected fun showProgressBarWithProgress(progress: Int) {
+    progressBar?.apply {
+      visibility = VISIBLE
+      show()
+      this.progress = progress
+    }
+  }
+
+  protected fun hideProgressBar() {
+    progressBar?.apply {
+      visibility = View.GONE
+      hide()
+    }
   }
 
   private fun restoreDeletedTab(index: Int) {
@@ -1619,7 +1680,7 @@ abstract class CoreReaderFragment :
     unsupportedMimeTypeHandler?.showSaveOrOpenUnsupportedFilesDialog(url, documentType)
   }
 
-  fun openZimFile(zimReaderSource: ZimReaderSource, isCustomApp: Boolean = false) {
+  suspend fun openZimFile(zimReaderSource: ZimReaderSource, isCustomApp: Boolean = false) {
     if (hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE) || isCustomApp) {
       if (zimReaderSource.canOpenInLibkiwix()) {
         // Show content if there is `Open Library` button showing
@@ -1656,14 +1717,8 @@ abstract class CoreReaderFragment :
     )
   }
 
-  private fun openAndSetInContainer(zimReaderSource: ZimReaderSource) {
-    try {
-      if (isNotPreviouslyOpenZim(zimReaderSource)) {
-        webViewList.clear()
-      }
-    } catch (e: IOException) {
-      e.printStackTrace()
-    }
+  private suspend fun openAndSetInContainer(zimReaderSource: ZimReaderSource) {
+    clearWebViewListIfNotPreviouslyOpenZimFile(zimReaderSource)
     zimReaderContainer?.let { zimReaderContainer ->
       zimReaderContainer.setZimReaderSource(zimReaderSource)
 
@@ -1676,6 +1731,39 @@ abstract class CoreReaderFragment :
       } ?: kotlin.run {
         requireActivity().toast(R.string.error_file_invalid, Toast.LENGTH_LONG)
       }
+    }
+  }
+
+  private fun clearWebViewListIfNotPreviouslyOpenZimFile(zimReaderSource: ZimReaderSource?) {
+    if (isNotPreviouslyOpenZim(zimReaderSource)) {
+      stopOngoingLoadingAndClearWebViewList()
+    }
+  }
+
+  protected fun stopOngoingLoadingAndClearWebViewList() {
+    try {
+      webViewList.apply {
+        forEach { webView ->
+          // Stop any ongoing loading of the WebView
+          webView.stopLoading()
+          // Clear the navigation history of the WebView
+          webView.clearHistory()
+          // Clear cached resources to prevent loading old content
+          webView.clearCache(true)
+          // Pause any ongoing activity in the WebView to prevent resource usage
+          webView.onPause()
+          // Forcefully destroy the WebView before setting the new ZIM file
+          // to ensure that it does not continue attempting to load internal links
+          // from the previous ZIM file, which could cause errors.
+          webView.destroy()
+        }
+        // Clear the WebView list after destroying the WebViews
+        clear()
+      }
+    } catch (e: IOException) {
+      e.printStackTrace()
+      // Clear the WebView list in case of an error
+      webViewList.clear()
     }
   }
 
@@ -1711,7 +1799,9 @@ abstract class CoreReaderFragment :
     when (requestCode) {
       REQUEST_STORAGE_PERMISSION -> {
         if (hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-          zimReaderSource?.let(::openZimFile)
+          lifecycleScope.launch {
+            zimReaderSource?.let { openZimFile(it) }
+          }
         } else {
           snackBarRoot?.let { snackBarRoot ->
             Snackbar.make(snackBarRoot, R.string.request_storage, Snackbar.LENGTH_LONG)
@@ -1846,6 +1936,90 @@ abstract class CoreReaderFragment :
     if (tts == null) {
       setUpTTS()
     }
+    lifecycleScope.launch { donationDialogHandler?.attemptToShowDonationPopup() }
+  }
+
+  @Suppress("InflateParams", "MagicNumber")
+  protected open fun showDonationLayout() {
+    val donationCardView = layoutInflater.inflate(R.layout.layout_donation_bottom_sheet, null)
+    val layoutParams = FrameLayout.LayoutParams(
+      getDonationPopupWidth(),
+      FrameLayout.LayoutParams.WRAP_CONTENT
+    ).apply {
+      val rightAndLeftMargin = requireActivity().resources.getDimensionPixelSize(
+        org.kiwix.kiwixmobile.core.R.dimen.activity_horizontal_margin
+      )
+      setMargins(
+        rightAndLeftMargin,
+        0,
+        rightAndLeftMargin,
+        getBottomMarginForDonationPopup()
+      )
+      gravity = BOTTOM or CENTER_HORIZONTAL
+    }
+
+    donationCardView.layoutParams = layoutParams
+    donationLayout?.apply {
+      removeAllViews()
+      addView(donationCardView)
+      setDonationLayoutVisibility(VISIBLE)
+    }
+    donationCardView.findViewById<TextView>(R.id.descriptionText).apply {
+      text = getString(
+        R.string.donation_dialog_description,
+        (requireActivity() as CoreMainActivity).appName
+      )
+    }
+    val donateButton: TextView = donationCardView.findViewById(R.id.donateButton)
+    donateButton.setOnClickListener {
+      donationDialogHandler?.updateLastDonationPopupShownTime()
+      setDonationLayoutVisibility(GONE)
+      openKiwixSupportUrl()
+    }
+
+    val laterButton: TextView = donationCardView.findViewById(R.id.laterButton)
+    laterButton.setOnClickListener {
+      donationDialogHandler?.donateLater()
+      setDonationLayoutVisibility(GONE)
+    }
+  }
+
+  private fun getDonationPopupWidth(): Int {
+    val deviceWidth = requireActivity().getWindowWidth()
+    val maximumDonationLayoutWidth =
+      requireActivity().resources.getDimensionPixelSize(R.dimen.maximum_donation_popup_width)
+    return when {
+      deviceWidth > maximumDonationLayoutWidth || requireActivity().isLandScapeMode() -> {
+        maximumDonationLayoutWidth
+      }
+
+      else -> FrameLayout.LayoutParams.MATCH_PARENT
+    }
+  }
+
+  private fun getBottomMarginForDonationPopup(): Int {
+    var bottomMargin = requireActivity().resources.getDimensionPixelSize(
+      R.dimen.donation_popup_bottom_margin
+    )
+    val bottomAppBar = requireActivity()
+      .findViewById<BottomAppBar>(R.id.bottom_toolbar)
+    if (bottomAppBar.visibility == VISIBLE) {
+      // if bottomAppBar is visible then add the height of the bottomAppBar.
+      bottomMargin += requireActivity().resources.getDimensionPixelSize(
+        R.dimen.material_minimum_height_and_width
+      )
+      bottomMargin += requireActivity().resources.getDimensionPixelSize(R.dimen.card_margin)
+    }
+
+    return bottomMargin
+  }
+
+  protected open fun openKiwixSupportUrl() {
+    (requireActivity() as CoreMainActivity).openSupportKiwixExternalLink()
+  }
+
+  private fun setDonationLayoutVisibility(visibility: Int) {
+    donationLayout?.visibility = visibility
   }
 
   private fun openFullScreenIfEnabled() {
@@ -1873,11 +2047,13 @@ abstract class CoreReaderFragment :
   }
 
   private fun openSearchItem(item: SearchItemToOpen) {
-    zimReaderContainer?.titleToUrl(item.pageTitle)?.let {
-      if (item.shouldOpenInNewTab) {
-        createNewTab()
+    if (item.shouldOpenInNewTab) {
+      createNewTab()
+    }
+    item.pageUrl?.let(::loadUrlWithCurrentWebview) ?: kotlin.run {
+      zimReaderContainer?.titleToUrl(item.pageTitle)?.apply {
+        loadUrlWithCurrentWebview(zimReaderContainer?.urlSuffixToParsableUrl(this))
       }
-      loadUrlWithCurrentWebview(zimReaderContainer?.urlSuffixToParsableUrl(it))
     }
     requireActivity().consumeObservable<SearchItemToOpen>(TAG_FILE_SEARCHED)
   }
@@ -2023,6 +2199,10 @@ abstract class CoreReaderFragment :
     super.onConfigurationChanged(newConfig)
     // Forcing redraw of RecyclerView children so that the tabs are properly oriented on rotation
     tabRecyclerView?.adapter = tabsAdapter
+    // force redraw of donation layout if it is showing.
+    if (donationLayout?.isVisible == true) {
+      showDonationLayout()
+    }
   }
 
   private fun searchForTitle(title: String?, openInNewTab: Boolean) {
@@ -2210,14 +2390,10 @@ abstract class CoreReaderFragment :
   override fun webViewProgressChanged(progress: Int, webView: WebView) {
     if (isAdded) {
       updateUrlProcessor()
-      progressBar?.apply {
-        visibility = View.VISIBLE
-        show()
-        this.progress = progress
-        if (progress == 100) {
-          hide()
-          Log.d(TAG_KIWIX, "Loaded URL: " + getCurrentWebView()?.url)
-        }
+      showProgressBarWithProgress(progress)
+      if (progress == 100) {
+        hideProgressBar()
+        Log.d(TAG_KIWIX, "Loaded URL: " + getCurrentWebView()?.url)
       }
       (webView.context as AppCompatActivity).invalidateOptionsMenu()
     }
@@ -2313,7 +2489,9 @@ abstract class CoreReaderFragment :
   private fun isInvalidJson(jsonString: String?): Boolean =
     jsonString == null || jsonString == "[]"
 
-  protected fun manageExternalLaunchAndRestoringViewState() {
+  protected fun manageExternalLaunchAndRestoringViewState(
+    restoreOrigin: RestoreOrigin = FromExternalLaunch
+  ) {
     val settings = requireActivity().getSharedPreferences(
       SharedPreferenceUtil.PREF_KIWIX_MOBILE,
       0
@@ -2324,7 +2502,7 @@ abstract class CoreReaderFragment :
     if (isInvalidJson(zimArticles) || isInvalidJson(zimPositions)) {
       restoreViewStateOnInvalidJSON()
     } else {
-      restoreViewStateOnValidJSON(zimArticles, zimPositions, currentTab)
+      restoreViewStateOnValidJSON(zimArticles, zimPositions, currentTab, restoreOrigin)
     }
   }
 
@@ -2388,6 +2566,10 @@ abstract class CoreReaderFragment :
     unbindService()
   }
 
+  override fun showDonationDialog() {
+    showDonationLayout()
+  }
+
   private fun bindService() {
     requireActivity().bindService(
       Intent(requireActivity(), ReadAloudService::class.java), serviceConnection,
@@ -2436,7 +2618,8 @@ abstract class CoreReaderFragment :
   protected abstract fun restoreViewStateOnValidJSON(
     zimArticles: String?,
     zimPositions: String?,
-    currentTab: Int
+    currentTab: Int,
+    restoreOrigin: RestoreOrigin
   )
 
   /**
@@ -2448,4 +2631,9 @@ abstract class CoreReaderFragment :
    * when handling invalid JSON scenarios.
    */
   abstract fun restoreViewStateOnInvalidJSON()
+}
+
+enum class RestoreOrigin {
+  FromSearchScreen,
+  FromExternalLaunch
 }

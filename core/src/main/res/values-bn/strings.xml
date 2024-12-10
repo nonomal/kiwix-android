@@ -5,6 +5,7 @@
 * Bodhisattwa
 * Borhan
 * Greatder
+* San1joy23
 * Sohom Datta
 * Titodutta
 * Yahya
@@ -112,16 +113,14 @@
   <string name="tts_pause">বিরতি</string>
   <string name="tts_resume">পুনরায় শুরু করুন</string>
   <string name="stop">বন্ধ</string>
-  <string name="configure_storage_option">অভ্যন্তরীণ স্টোরেজে বই ডাউনলোড করবেন?</string>
   <string name="internal_storage">অভ্যন্তরীণ</string>
   <string name="external_storage">বহিঃস্থ</string>
-  <string name="configure">কনফিগার করুন</string>
   <string name="yes">হ্যাঁ</string>
   <string name="no">না</string>
   <string name="confirm_stop_download_title">ডাউনলোড বন্ধ করবেন?</string>
   <string name="confirm_stop_download_msg">আপনি কি নিশ্চিত যে আপনি এই ডাউনলোড বন্ধ করতে চান?</string>
   <string name="download_change_storage">ডিভাইসের সংগ্রহস্থল নির্বাচক</string>
-  <string name="tts_not_enabled">এই জিম ফাইলের জন্য লেখা থেকে বলা সক্রিয় নয়</string>
+  <string name="tts_not_enabled" fuzzy="true">এই জিম ফাইলের জন্য লেখা থেকে বলা সক্রিয় নয়</string>
   <string name="next">পরবর্তী</string>
   <string name="previous">পূর্ববর্তী</string>
   <string name="wifi_only_title">মোবাইল নেটওয়ার্কের মাধ্যমে বিষয়বস্তু ডাউনলোড করার অনুমতি দিবেন?</string>
@@ -147,6 +146,10 @@
   <string name="search_open_in_new_tab">নতুন ট্যাবে খুলুন</string>
   <string name="open_library">উন্মুক্ত পাঠাগার</string>
   <string name="tab_restored">ট্যাব পুনরুদ্ধার করা হয়েছে</string>
+  <string name="reaching_remote_library">দূরবর্তী গ্রন্থাগার লোড করা হচ্ছে</string>
+  <string name="parsing_remote_library">দূরবর্তী গ্রন্থাগার পার্সিং করা হচ্ছে</string>
+  <string name="starting_downloading_remote_library">অনলাইন গ্রন্থাগারের ডাউনলোড শুরু করা হচ্ছে</string>
+  <string name="downloading_library">গ্রন্থাগার ডাউনলোড করা হচ্ছে\n%s</string>
   <string name="choose_your_action">আপনার কার্য চয়ন করুন</string>
   <string name="open_note">টীকা খুলুন</string>
   <string name="open_article">নিবন্ধ খুলুন</string>

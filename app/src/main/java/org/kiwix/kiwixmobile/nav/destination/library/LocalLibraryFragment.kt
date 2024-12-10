@@ -47,13 +47,19 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
+import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import eu.mhutti1.utils.storage.Bytes
+import eu.mhutti1.utils.storage.StorageDevice
+import eu.mhutti1.utils.storage.StorageDeviceUtils
+import eu.mhutti1.utils.storage.StorageSelectDialog
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import kotlinx.coroutines.CoroutineScope
@@ -67,17 +73,18 @@ import org.kiwix.kiwixmobile.core.base.BaseFragment
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.isManageExternalStoragePermissionGranted
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.navigate
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.viewModel
-import org.kiwix.kiwixmobile.core.extensions.browserIntent
 import org.kiwix.kiwixmobile.core.extensions.coreMainActivity
 import org.kiwix.kiwixmobile.core.extensions.setBottomMarginToFragmentContainerView
+import org.kiwix.kiwixmobile.core.extensions.snack
 import org.kiwix.kiwixmobile.core.extensions.toast
 import org.kiwix.kiwixmobile.core.main.CoreMainActivity
-import org.kiwix.kiwixmobile.core.main.KIWIX_APK_WEBSITE_URL
 import org.kiwix.kiwixmobile.core.main.MainRepositoryActions
 import org.kiwix.kiwixmobile.core.navigateToAppSettings
 import org.kiwix.kiwixmobile.core.navigateToSettings
 import org.kiwix.kiwixmobile.core.reader.ZimFileReader
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
+import org.kiwix.kiwixmobile.core.utils.EXTERNAL_SELECT_POSITION
+import org.kiwix.kiwixmobile.core.utils.INTERNAL_SELECT_POSITION
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.SimpleRecyclerViewScrollListener
@@ -100,18 +107,23 @@ import org.kiwix.kiwixmobile.zimManager.ZimManageViewModel.FileSelectActions.Req
 import org.kiwix.kiwixmobile.zimManager.ZimManageViewModel.FileSelectActions.RequestSelect
 import org.kiwix.kiwixmobile.zimManager.fileselectView.FileSelectListState
 import java.io.File
+import java.util.Locale
 import javax.inject.Inject
 
 private const val WAS_IN_ACTION_MODE = "WAS_IN_ACTION_MODE"
 private const val MATERIAL_BOTTOM_VIEW_ENTER_ANIMATION_DURATION = 225L
 
-class LocalLibraryFragment : BaseFragment() {
+class LocalLibraryFragment : BaseFragment(), CopyMoveFileHandler.FileCopyMoveCallback {
 
   @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
   @Inject lateinit var sharedPreferenceUtil: SharedPreferenceUtil
   @Inject lateinit var dialogShower: DialogShower
   @Inject lateinit var mainRepositoryActions: MainRepositoryActions
   @Inject lateinit var zimReaderFactory: ZimFileReader.Factory
+
+  @JvmField
+  @Inject
+  var copyMoveFileHandler: CopyMoveFileHandler? = null
 
   private var actionMode: ActionMode? = null
   private val disposable = CompositeDisposable()
@@ -121,6 +133,9 @@ class LocalLibraryFragment : BaseFragment() {
 
   private val zimManageViewModel by lazy {
     requireActivity().viewModel<ZimManageViewModel>(viewModelFactory)
+  }
+  private val storageDeviceList by lazy {
+    StorageDeviceUtils.getWritableStorage(requireActivity())
   }
 
   private var storagePermissionLauncher: ActivityResultLauncher<Array<String>>? =
@@ -231,6 +246,10 @@ class LocalLibraryFragment : BaseFragment() {
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
     setUpSwipeRefreshLayout()
+    copyMoveFileHandler?.apply {
+      setFileCopyMoveCallback(this@LocalLibraryFragment)
+      setLifeCycleScope(lifecycleScope)
+    }
     fragmentDestinationLibraryBinding?.zimfilelist?.run {
       adapter = booksOnDiskAdapter
       layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL, false)
@@ -269,7 +288,7 @@ class LocalLibraryFragment : BaseFragment() {
         offerAction(FileSelectActions.UserClickedDownloadBooksButton)
       }
     }
-    hideFilePickerButton()
+    setUpFilePickerButton()
 
     fragmentDestinationLibraryBinding?.zimfilelist?.addOnScrollListener(
       SimpleRecyclerViewScrollListener { _, newState ->
@@ -286,6 +305,15 @@ class LocalLibraryFragment : BaseFragment() {
         }
       }
     )
+    showCopyMoveDialogForOpenedZimFileFromStorage()
+  }
+
+  private fun showCopyMoveDialogForOpenedZimFileFromStorage() {
+    val args = LocalLibraryFragmentArgs.fromBundle(requireArguments())
+    if (args.zimFileUri.isNotEmpty()) {
+      handleSelectedFileUri(args.zimFileUri.toUri())
+    }
+    requireArguments().clear()
   }
 
   private fun setUpSwipeRefreshLayout() {
@@ -340,13 +368,7 @@ class LocalLibraryFragment : BaseFragment() {
     }
   }
 
-  private fun hideFilePickerButton() {
-    if (sharedPreferenceUtil.isPlayStoreBuild) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        fragmentDestinationLibraryBinding?.selectFile?.visibility = View.GONE
-      }
-    }
-
+  private fun setUpFilePickerButton() {
     fragmentDestinationLibraryBinding?.selectFile?.setOnClickListener {
       if (!requireActivity().isManageExternalStoragePermissionGranted(sharedPreferenceUtil)) {
         showManageExternalStoragePermissionDialog()
@@ -358,9 +380,15 @@ class LocalLibraryFragment : BaseFragment() {
 
   private fun showFileChooser() {
     val intent = Intent().apply {
-      action = Intent.ACTION_GET_CONTENT
+      action = Intent.ACTION_OPEN_DOCUMENT
       type = "*/*"
       addCategory(Intent.CATEGORY_OPENABLE)
+      if (sharedPreferenceUtil.prefIsTest) {
+        putExtra(
+          "android.provider.extra.INITIAL_URI",
+          Uri.parse("content://com.android.externalstorage.documents/document/primary:Download")
+        )
+      }
     }
     try {
       fileSelectLauncher.launch(Intent.createChooser(intent, "Select a zim file"))
@@ -372,11 +400,44 @@ class LocalLibraryFragment : BaseFragment() {
   private val fileSelectLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
       if (result.resultCode == RESULT_OK) {
-        result.data?.data?.let { uri ->
-          getZimFileFromUri(uri)?.let(::navigateToReaderFragment)
+        result.data?.data?.let {
+          requireActivity().applicationContext.contentResolver.takePersistableUriPermission(
+            it,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+              Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+          )
+          handleSelectedFileUri(it)
         }
       }
     }
+
+  fun handleSelectedFileUri(uri: Uri) {
+    if (sharedPreferenceUtil.isPlayStoreBuildWithAndroid11OrAbove()) {
+      val documentFile = when (uri.scheme) {
+        "file" -> DocumentFile.fromFile(File("$uri"))
+        else -> {
+          DocumentFile.fromSingleUri(requireActivity(), uri)
+        }
+      }
+      // If the file is not valid, it shows an error message and stops further processing.
+      // If the file name is not found, then let them to copy the file
+      // and we will handle this later.
+      val fileName = documentFile?.name
+      if (fileName != null && !FileUtils.isValidZimFile(fileName)) {
+        activity.toast(string.error_file_invalid)
+        return
+      }
+      copyMoveFileHandler?.showMoveFileToPublicDirectoryDialog(
+        uri,
+        documentFile,
+        // pass if fileName is null then we will validate it after copying/moving
+        fileName == null,
+        parentFragmentManager
+      )
+    } else {
+      getZimFileFromUri(uri)?.let(::navigateToReaderFragment)
+    }
+  }
 
   private fun getZimFileFromUri(
     uri: Uri
@@ -425,32 +486,13 @@ class LocalLibraryFragment : BaseFragment() {
 
   override fun onResume() {
     super.onResume()
-    if (sharedPreferenceUtil.isPlayStoreBuildWithAndroid11OrAbove() &&
-      sharedPreferenceUtil.playStoreRestrictionPermissionDialog
-    ) {
-      showPlayStoreRestrictionInformationToUser()
-    } else if (!sharedPreferenceUtil.isPlayStoreBuildWithAndroid11OrAbove() &&
+    if (!sharedPreferenceUtil.isPlayStoreBuildWithAndroid11OrAbove() &&
       !sharedPreferenceUtil.prefIsTest && !permissionDeniedLayoutShowing
     ) {
       checkPermissions()
     } else if (!permissionDeniedLayoutShowing) {
       fragmentDestinationLibraryBinding?.zimfilelist?.visibility = VISIBLE
     }
-  }
-
-  private fun showPlayStoreRestrictionInformationToUser() {
-    // We should only ask for first time
-    sharedPreferenceUtil.playStoreRestrictionPermissionDialog = false
-    // Show Dialog to the user to inform about the play store restriction
-    dialogShower.show(
-      KiwixDialog.PlayStoreRestrictionPopup(KIWIX_APK_WEBSITE_URL),
-      {},
-      ::openKiwixWebsiteForDownloadingApk
-    )
-  }
-
-  private fun openKiwixWebsiteForDownloadingApk() {
-    requireActivity().startActivity(KIWIX_APK_WEBSITE_URL.toUri().browserIntent())
   }
 
   override fun onDestroyView() {
@@ -462,6 +504,8 @@ class LocalLibraryFragment : BaseFragment() {
     disposable.clear()
     storagePermissionLauncher?.unregister()
     storagePermissionLauncher = null
+    copyMoveFileHandler?.dispose()
+    copyMoveFileHandler = null
   }
 
   private fun sideEffects() = zimManageViewModel.sideEffects
@@ -521,7 +565,7 @@ class LocalLibraryFragment : BaseFragment() {
   }
 
   private fun setActionModeTitle(selectedBookCount: Int) {
-    actionMode?.title = String.format("%d", selectedBookCount)
+    actionMode?.title = String.format(Locale.getDefault(), "%d", selectedBookCount)
   }
 
   override fun onSaveInstanceState(outState: Bundle) {
@@ -587,4 +631,60 @@ class LocalLibraryFragment : BaseFragment() {
   private fun readStorageHasBeenPermanentlyDenied(isPermissionGranted: Boolean) =
     !isPermissionGranted &&
       !shouldShowRationalePermission()
+
+  override fun onFileCopied(file: File) {
+    navigateToReaderFragment(file = file)
+  }
+
+  override fun onFileMoved(file: File) {
+    navigateToReaderFragment(file = file)
+  }
+
+  override fun onError(errorMessage: String) {
+    activity.toast(errorMessage)
+  }
+
+  override fun filesystemDoesNotSupportedCopyMoveFilesOver4GB() {
+    showStorageSelectionSnackBar(getString(R.string.file_system_does_not_support_4gb))
+  }
+
+  override fun insufficientSpaceInStorage(availableSpace: Long) {
+    val message = """
+        ${getString(string.move_no_space)}
+        ${getString(string.space_available)} ${Bytes(availableSpace).humanReadable}
+    """.trimIndent()
+
+    showStorageSelectionSnackBar(message)
+  }
+
+  private fun showStorageSelectionSnackBar(message: String) {
+    fragmentDestinationLibraryBinding?.zimfilelist?.snack(
+      message,
+      requireActivity().findViewById(R.id.bottom_nav_view),
+      string.download_change_storage,
+      ::showStorageSelectDialog
+    )
+  }
+
+  private fun showStorageSelectDialog() = StorageSelectDialog()
+    .apply {
+      onSelectAction = ::storeDeviceInPreferences
+      setStorageDeviceList(storageDeviceList)
+      setShouldShowCheckboxSelected(true)
+    }
+    .show(parentFragmentManager, getString(string.pref_storage))
+
+  private fun storeDeviceInPreferences(
+    storageDevice: StorageDevice
+  ) {
+    sharedPreferenceUtil.putPrefStorage(
+      sharedPreferenceUtil.getPublicDirectoryPath(storageDevice.name)
+    )
+    sharedPreferenceUtil.putStoragePosition(
+      if (storageDevice.isInternal) INTERNAL_SELECT_POSITION
+      else EXTERNAL_SELECT_POSITION
+    )
+    // after selecting the storage try to copy/move the zim file.
+    copyMoveFileHandler?.copyMoveZIMFileInSelectedStorage(storageDevice)
+  }
 }

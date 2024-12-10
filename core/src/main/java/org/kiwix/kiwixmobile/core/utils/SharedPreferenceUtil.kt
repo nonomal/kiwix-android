@@ -243,12 +243,6 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
           manageExternalFilesPermissionDialogOnRefresh
         )
       }
-  var playStoreRestrictionPermissionDialog: Boolean
-    get() = sharedPreferences.getBoolean(PREF_PLAY_STORE_RESTRICTION, true)
-    set(playStoreRestrictionPermissionDialog) =
-      sharedPreferences.edit {
-        putBoolean(PREF_PLAY_STORE_RESTRICTION, playStoreRestrictionPermissionDialog)
-      }
 
   var hostedBooks: Set<String>
     get() = sharedPreferences.getStringSet(PREF_HOSTED_BOOKS, null)?.toHashSet() ?: HashSet()
@@ -263,8 +257,32 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
       _textZooms.offer(textZoom)
     }
 
+  var shouldShowStorageSelectionDialog: Boolean
+    get() = sharedPreferences.getBoolean(PREF_SHOW_COPY_MOVE_STORAGE_SELECTION_DIALOG, true)
+    set(value) {
+      sharedPreferences.edit {
+        putBoolean(PREF_SHOW_COPY_MOVE_STORAGE_SELECTION_DIALOG, value)
+      }
+    }
+
+  var lastDonationPopupShownInMilliSeconds: Long
+    get() = sharedPreferences.getLong(PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS, 0L)
+    set(value) {
+      sharedPreferences.edit {
+        putLong(PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS, value)
+      }
+    }
+
+  var laterClickedMilliSeconds: Long
+    get() = sharedPreferences.getLong(PREF_LATER_CLICKED_MILLIS, 0L)
+    set(value) {
+      sharedPreferences.edit {
+        putLong(PREF_LATER_CLICKED_MILLIS, value)
+      }
+    }
+
   fun getPublicDirectoryPath(path: String): String =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       path
     } else {
       path.substringBefore(context.getString(R.string.android_directory_seperator))
@@ -306,11 +324,14 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
     const val PREF_MANAGE_EXTERNAL_FILES = "pref_manage_external_files"
     const val PREF_SHOW_MANAGE_PERMISSION_DIALOG_ON_REFRESH = "pref_show_manage_external_files"
     const val IS_PLAY_STORE_BUILD = "is_play_store_build"
-    const val PREF_PLAY_STORE_RESTRICTION = "pref_play_store_restriction"
     const val PREF_BOOKMARKS_MIGRATED = "pref_bookmarks_migrated"
     const val PREF_RECENT_SEARCH_MIGRATED = "pref_recent_search_migrated"
     const val PREF_HISTORY_MIGRATED = "pref_history_migrated"
     const val PREF_NOTES_MIGRATED = "pref_notes_migrated"
     const val PREF_APP_DIRECTORY_TO_PUBLIC_MIGRATED = "pref_app_directory_to_public_migrated"
+    const val PREF_SHOW_COPY_MOVE_STORAGE_SELECTION_DIALOG = "pref_show_copy_move_storage_dialog"
+    private const val PREF_LATER_CLICKED_MILLIS = "pref_later_clicked_millis"
+    const val PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS =
+      "pref_last_donation_shown_in_milliseconds"
   }
 }

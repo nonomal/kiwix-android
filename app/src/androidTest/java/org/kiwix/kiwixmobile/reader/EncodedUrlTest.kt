@@ -25,6 +25,8 @@ import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
+import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -54,8 +56,11 @@ class EncodedUrlTest : BaseActivityTest() {
     PreferenceManager.getDefaultSharedPreferences(context).edit {
       putBoolean(SharedPreferenceUtil.PREF_SHOW_INTRO, false)
       putBoolean(SharedPreferenceUtil.PREF_WIFI_ONLY, false)
-      putBoolean(SharedPreferenceUtil.PREF_PLAY_STORE_RESTRICTION, false)
       putString(SharedPreferenceUtil.PREF_LANG, "en")
+      putLong(
+        SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
+        System.currentTimeMillis()
+      )
     }
     activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
@@ -70,7 +75,7 @@ class EncodedUrlTest : BaseActivityTest() {
   }
 
   @Test
-  fun testEncodedUrls() {
+  fun testEncodedUrls() = runBlocking {
     val loadFileStream =
       EncodedUrlTest::class.java.classLoader.getResourceAsStream("characters_encoding.zim")
     val zimFile = File(
@@ -150,14 +155,19 @@ class EncodedUrlTest : BaseActivityTest() {
           "%F0%9F%A4%8D%F0%9F%8E%80%F0%9F%A7%B8%F0%9F%8C%B7%F0%9F%8D%AD"
       )
     )
-    encodedUrls.forEach {
+    encodedUrls.forEach { encodedUrl ->
       Assert.assertEquals(
-        it.expectedUrl,
-        zimFileReader.getRedirect(it.url)
+        encodedUrl.expectedUrl,
+        zimFileReader.getRedirect(encodedUrl.url)
       )
     }
     // dispose the ZimFileReader
     zimFileReader.dispose()
+  }
+
+  @After
+  fun finish() {
+    TestUtils.deleteTemporaryFilesOfTestCases(context)
   }
 
   data class EncodedUrl(val url: String, val expectedUrl: String)
